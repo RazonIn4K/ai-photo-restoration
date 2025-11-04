@@ -1,0 +1,12 @@
+{
+  "id": null,
+  "uid": "base-overview",
+  "title": "Face Restore AI Overview",
+  "timezone": "browser",
+  "tags": ["facial", "restoration"],
+  "schemaVersion": 39,
+  "version": 0,
+  "editable": true,
+  "panels": [],
+  "refresh": "30s"
+}
