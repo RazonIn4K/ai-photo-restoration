@@ -39,10 +39,9 @@ function buildKmsProviders(): KMSProviders {
     aws: {
       accessKeyId: env.MONGO_AWS_KMS_ACCESS_KEY_ID!,
       secretAccessKey: env.MONGO_AWS_KMS_SECRET_ACCESS_KEY!,
-      region: env.MONGO_AWS_KMS_REGION!,
-      keyId: env.MONGO_AWS_KMS_KEY_ID!
+      region: env.MONGO_AWS_KMS_REGION!
     }
-  };
+  } as KMSProviders;
 }
 
 export function buildAutoEncryptionOptions(
@@ -69,7 +68,8 @@ export function buildAutoEncryptionOptions(
 }
 
 async function loadClientEncryption() {
-  return import('mongodb-client-encryption');
+  const clientEncryption = await import('mongodb-client-encryption');
+  return clientEncryption;
 }
 
 export async function ensureKeyVaultArtifacts(client: MongoClient): Promise<void> {
@@ -113,7 +113,10 @@ export async function ensureDefaultDataKey(client: MongoClient): Promise<string 
     return existingKey._id.toString('base64');
   }
 
-  const { ClientEncryption } = await loadClientEncryption();
+  const clientEncryption = await loadClientEncryption();
+  // @ts-expect-error - ClientEncryption exists but TypeScript can't infer it properly
+  const ClientEncryption =
+    clientEncryption.ClientEncryption || clientEncryption.default?.ClientEncryption;
 
   const encryption = new ClientEncryption(client, {
     keyVaultNamespace,

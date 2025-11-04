@@ -1,9 +1,13 @@
 import type { AutoEncryptionOptions } from 'mongodb';
 import mongoose, { type ConnectOptions, type Connection } from 'mongoose';
 
+import {
+  buildAutoEncryptionOptions,
+  ensureDefaultDataKey,
+  ensureKeyVaultArtifacts
+} from './csfle.js';
 import { env } from '../config/index.js';
 import { logger } from '../lib/logger.js';
-import { buildAutoEncryptionOptions, ensureDefaultDataKey, ensureKeyVaultArtifacts } from './csfle.js';
 
 const RECONNECT_DELAY_MS = 2_000;
 const MAX_RETRIES = 5;
@@ -110,7 +114,11 @@ export function getDatabaseClient(): Connection {
 export async function checkDatabaseHealth(): Promise<boolean> {
   try {
     const conn = await connectDatabase();
-    await conn.connection.db.admin().command({ ping: 1 });
+    const db = conn.connection.db;
+    if (!db) {
+      throw new Error('Database connection not available');
+    }
+    await db.admin().command({ ping: 1 });
     return true;
   } catch (error) {
     logger.error({ error }, 'MongoDB health check failed');

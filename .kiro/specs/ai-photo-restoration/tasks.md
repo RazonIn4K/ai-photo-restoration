@@ -20,7 +20,7 @@
     - Define GroupConfig and VersionedSelectors interfaces
     - _Requirements: 1.1, 4.1, 5.5_
 
-  - [ ] 2.3 Implement Mongoose models with validation
+  - [x] 2.3 Implement Mongoose models with validation
     - Create Request model with compound indexes and validation rules
     - Implement Consent model with privacy controls
     - Build ActionLog model with immutable append-only structure
@@ -50,7 +50,7 @@
   - [ ] 4.1 Set up Express application with security middleware
     - Configure Helmet with COOP, COEP, CORP headers
     - Implement strict Content Security Policy with nonces
-    - Add Sec-Fetch-* header validation and SameSite/Origin checks
+    - Add Sec-Fetch-\* header validation and SameSite/Origin checks
     - Set up express-rate-limit with Redis backing
     - _Requirements: 6.1, 6.2, 6.6_
 
@@ -87,7 +87,7 @@
     - Add queue metrics integration with Prometheus
     - _Requirements: 2.1, 2.2_
 
-  - [ ]* 5.3 Add Bull Board dashboard for queue monitoring
+  - [ ]\* 5.3 Add Bull Board dashboard for queue monitoring
     - Set up Bull Board UI for queue visualization and management
     - Configure authentication and access controls for queue dashboard
     - _Requirements: 6.4_
@@ -133,7 +133,7 @@
     - Implement fallback mechanisms when selectors fail
     - _Requirements: 1.9_
 
-  - [ ]* 7.3 Add optional third-party extraction integration
+  - [ ]\* 7.3 Add optional third-party extraction integration
     - Integrate Zyte API with contractual compliance safeguards
     - Implement fallback to local Playwright when external API fails
     - Add rate limiting and error handling for external services
@@ -238,22 +238,22 @@
     - Implement dependency update automation with security patches
     - _Requirements: 6.7_
 
-- [ ]* 13. Create comprehensive testing suite
-  - [ ]* 13.1 Build unit tests for core functionality
+- [ ]\* 13. Create comprehensive testing suite
+  - [ ]\* 13.1 Build unit tests for core functionality
     - Create tests for encryption/decryption operations
     - Build hash computation and verification tests
     - Add EXIF and C2PA metadata handling tests
     - Create safety validation algorithm tests
     - _Requirements: All core functionality_
 
-  - [ ]* 13.2 Implement integration tests for API and workflows
+  - [ ]\* 13.2 Implement integration tests for API and workflows
     - Build API endpoint tests using Supertest
     - Create database operation tests with MongoDB Memory Server
     - Add queue processing tests with BullMQ test utilities
     - Build file operation tests with temporary directories
     - _Requirements: All API and workflow functionality_
 
-  - [ ]* 13.3 Add end-to-end workflow testing
+  - [ ]\* 13.3 Add end-to-end workflow testing
     - Create complete request lifecycle tests
     - Build dashboard UI tests using Playwright
     - Add performance testing with Artillery load testing

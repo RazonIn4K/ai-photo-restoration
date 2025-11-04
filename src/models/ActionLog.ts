@@ -1,7 +1,8 @@
 import { Schema, model, type Document } from 'mongoose';
-import { ulid } from 'ulid';
 import { createHash } from 'node:crypto';
+import { ulid } from 'ulid';
 
+import { validateRequestId, validateOperatorId } from '../lib/validation.js';
 import type { ActionType } from '../types/index.js';
 
 export interface IActionLog extends Document {
@@ -10,7 +11,7 @@ export interface IActionLog extends Document {
   action: ActionType;
   operatorId?: string;
   timestamp: Date;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   previousHash?: string; // For tamper-evident chain
   currentHash: string;
   rekorLogIndex?: number; // External transparency log anchor
@@ -31,7 +32,11 @@ const ActionLogSchema = new Schema<IActionLog>(
     requestId: {
       type: String,
       required: true,
-      index: true
+      index: true,
+      validate: {
+        validator: validateRequestId,
+        message: 'Request ID must be a valid ULID'
+      }
     },
     action: {
       type: String,
@@ -40,7 +45,13 @@ const ActionLogSchema = new Schema<IActionLog>(
     },
     operatorId: {
       type: String,
-      index: true
+      index: true,
+      validate: {
+        validator: function (value: string) {
+          return !value || validateOperatorId(value);
+        },
+        message: 'Operator ID must be alphanumeric with dashes/underscores, 3-50 characters'
+      }
     },
     timestamp: {
       type: Date,
@@ -82,12 +93,12 @@ ActionLogSchema.pre('save', async function (next) {
   if (this.isNew) {
     // Find the most recent log entry for this specific request to get previous hash
     const lastLog = await ActionLogModel.findOne(
-      { requestId: this.requestId }, 
-      {}, 
+      { requestId: this.requestId },
+      {},
       { sort: { timestamp: -1 } }
     );
     this.previousHash = lastLog?.currentHash;
-    
+
     // Compute current hash from log content
     const hashInput = JSON.stringify({
       logId: this.logId,
@@ -98,27 +109,31 @@ ActionLogSchema.pre('save', async function (next) {
       metadata: this.metadata,
       previousHash: this.previousHash
     });
-    
+
     this.currentHash = createHash('sha256').update(hashInput).digest('hex');
   }
   next();
 });
 
 // Static method to verify hash chain integrity for a specific request
-ActionLogSchema.statics.verifyHashChain = async function (requestId: string, startDate?: Date, endDate?: Date) {
-  const query: unknown = { requestId };
+ActionLogSchema.statics.verifyHashChain = async function (
+  requestId: string,
+  startDate?: Date,
+  endDate?: Date
+) {
+  const query: Record<string, unknown> = { requestId };
   if (startDate || endDate) {
     query.timestamp = {};
     if (startDate) query.timestamp.$gte = startDate;
     if (endDate) query.timestamp.$lte = endDate;
   }
-  
+
   const logs = await this.find(query).sort({ timestamp: 1 });
-  
+
   for (let i = 0; i < logs.length; i++) {
     const log = logs[i];
     const expectedPreviousHash = i > 0 ? logs[i - 1].currentHash : undefined;
-    
+
     if (log.previousHash !== expectedPreviousHash) {
       return {
         valid: false,
@@ -126,7 +141,7 @@ ActionLogSchema.statics.verifyHashChain = async function (requestId: string, sta
         message: `Hash chain broken at log ${log.logId} for request ${requestId}`
       };
     }
-    
+
     // Verify current hash
     const hashInput = JSON.stringify({
       logId: log.logId,
@@ -137,7 +152,7 @@ ActionLogSchema.statics.verifyHashChain = async function (requestId: string, sta
       metadata: log.metadata,
       previousHash: log.previousHash
     });
-    
+
     const expectedHash = createHash('sha256').update(hashInput).digest('hex');
     if (log.currentHash !== expectedHash) {
       return {
@@ -147,7 +162,7 @@ ActionLogSchema.statics.verifyHashChain = async function (requestId: string, sta
       };
     }
   }
-  
+
   return { valid: true, verifiedCount: logs.length, requestId };
 };
 

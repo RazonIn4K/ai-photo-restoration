@@ -1,4 +1,4 @@
-import pino from 'pino';
+import pinoLogger from 'pino';
 
 import { env } from '../config/index.js';
 
@@ -21,7 +21,7 @@ const transport = env.isDevelopment
     }
   : undefined;
 
-export const logger = pino({
+export const logger = pinoLogger({
   level: env.LOG_LEVEL,
   base: {
     app: 'face-restore-ai',
