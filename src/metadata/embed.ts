@@ -6,18 +6,14 @@
  * into restored images.
  */
 
-import { createRestorationManifest, serializeManifest, type C2PAManifest } from './c2pa.js';
-import { writeEXIF, readEXIF, type PhotoRestorationMetadata } from './exif.js';
-
-/**
- * Complete metadata package for a restored image
- */
-export interface CompleteMetadata extends PhotoRestorationMetadata {
-  /** C2PA manifest */
-  c2paManifest?: C2PAManifest;
-  /** Serialized C2PA manifest (JSON) */
-  c2paManifestJSON?: string;
-}
+import {
+  createRestorationManifest,
+  getActionSummary,
+  parseManifest,
+  serializeManifest,
+  type C2PAManifest
+} from './c2pa.js';
+import { readEXIF, writeEXIF, type EXIFMetadata, type PhotoRestorationMetadata } from './exif.js';
 
 /**
  * Result of embedding metadata
@@ -72,7 +68,7 @@ export async function embedCompleteMetadata(
 
   const c2paManifestJSON = serializeManifest(c2paManifest);
 
-  // Prepare EXIF metadata
+  // Prepare EXIF metadata including C2PA manifest
   const exifMetadata: PhotoRestorationMetadata = {
     originalPostId: metadata.originalPostId,
     requestId: metadata.requestId,
@@ -82,11 +78,12 @@ export async function embedCompleteMetadata(
     approvedBy: metadata.approvedBy,
     originalSHA256: metadata.originalSHA256,
     originalPerceptualHash: metadata.originalPerceptualHash,
+    c2paManifest: c2paManifestJSON,
   };
 
-  // Embed EXIF metadata
-  // Note: C2PA manifest would typically be embedded using c2pa-node,
-  // but for now we store it in EXIF as well for accessibility
+  // Embed EXIF metadata (including C2PA manifest as JSON)
+  // Note: C2PA manifest would typically be embedded using c2pa-node with cryptographic signing,
+  // but for now we store it in EXIF for accessibility
   const imageWithMetadata = await writeEXIF(imageBuffer, exifMetadata);
 
   return {
@@ -103,32 +100,26 @@ export async function embedCompleteMetadata(
  * @param imageBuffer - Image with embedded metadata
  * @returns Complete metadata
  */
-export async function extractCompleteMetadata(imageBuffer: Buffer): Promise<CompleteMetadata> {
+export async function extractCompleteMetadata(imageBuffer: Buffer): Promise<{
+  exif: EXIFMetadata;
+  c2pa: C2PAManifest | null;
+}> {
   const exifData = await readEXIF(imageBuffer);
 
-  const metadata: CompleteMetadata = {
-    originalPostId: exifData.originalPostId,
-    requestId: exifData.requestId,
-    approvalTimestamp: exifData.approvalTimestamp,
-    restorationTimestamp: exifData.restorationTimestamp,
-    aiModel: exifData.aiModel,
-    approvedBy: exifData.approvedBy,
-    originalSHA256: exifData.originalSHA256,
-    originalPerceptualHash: exifData.originalPerceptualHash,
-  };
-
-  // Extract C2PA manifest if present (would be extracted differently in production)
-  const c2paManifestJSON: string | undefined = undefined;
-  if (c2paManifestJSON) {
+  // Extract C2PA manifest from EXIF if present
+  let c2paManifest: C2PAManifest | null = null;
+  if (exifData.c2paManifest) {
     try {
-      metadata.c2paManifestJSON = c2paManifestJSON;
-      // Would parse with parseManifest() here
+      c2paManifest = parseManifest(exifData.c2paManifest);
     } catch {
       // Invalid manifest JSON
     }
   }
 
-  return metadata;
+  return {
+    exif: exifData,
+    c2pa: c2paManifest,
+  };
 }
 
 /**
@@ -145,36 +136,28 @@ export async function extractCompleteMetadata(imageBuffer: Buffer): Promise<Comp
  */
 export async function verifyMetadataIntegrity(
   imageBuffer: Buffer,
-  expectedSHA256?: string
-): Promise<{ valid: boolean; errors: string[] }> {
+  expected?: Partial<PhotoRestorationMetadata>
+): Promise<{ isValid: boolean; errors: string[] }> {
   const errors: string[] = [];
 
   try {
-    const metadata = await extractCompleteMetadata(imageBuffer);
+    const { exif } = await extractCompleteMetadata(imageBuffer);
 
-    // Check required fields
-    if (!metadata.originalPostId) {
-      errors.push('Missing originalPostId in metadata');
-    }
-    if (!metadata.requestId) {
-      errors.push('Missing requestId in metadata');
-    }
-
-    // Verify SHA-256 if provided
-    if (expectedSHA256 && metadata.originalSHA256 !== expectedSHA256) {
-      errors.push(`SHA-256 mismatch: expected ${expectedSHA256}, got ${metadata.originalSHA256}`);
-    }
-
-    // Verify C2PA manifest if present
-    if (metadata.c2paManifestJSON) {
-      // Would validate with validateManifest() here
+    // Verify expected fields
+    if (expected) {
+      for (const [key, value] of Object.entries(expected)) {
+        const actualValue = exif[key as keyof typeof exif];
+        if (value !== undefined && actualValue !== value) {
+          errors.push(`${key} mismatch: expected ${value}, got ${actualValue}`);
+        }
+      }
     }
   } catch (error) {
     errors.push(`Failed to extract metadata: ${error}`);
   }
 
   return {
-    valid: errors.length === 0,
+    isValid: errors.length === 0,
     errors,
   };
 }
@@ -185,32 +168,42 @@ export async function verifyMetadataIntegrity(
  * @param imageBuffer - Image with metadata
  * @returns Human-readable metadata summary
  */
-export async function getMetadataSummary(imageBuffer: Buffer): Promise<string[]> {
-  const metadata = await extractCompleteMetadata(imageBuffer);
+export async function getMetadataSummary(imageBuffer: Buffer): Promise<string> {
+  const { exif, c2pa } = await extractCompleteMetadata(imageBuffer);
   const summary: string[] = [];
 
-  summary.push(`Request ID: ${metadata.requestId || 'Unknown'}`);
-  summary.push(`Original Post ID: ${metadata.originalPostId || 'Unknown'}`);
-
-  if (metadata.aiModel) {
-    summary.push(`AI Model: ${metadata.aiModel}`);
+  if (!exif.requestId && !exif.originalPostId) {
+    return 'No metadata found';
   }
 
-  if (metadata.approvedBy) {
-    summary.push(`Approved By: ${metadata.approvedBy}`);
+  summary.push(`Request ID: ${exif.requestId || 'Unknown'}`);
+  summary.push(`Original Post ID: ${exif.originalPostId || 'Unknown'}`);
+
+  if (exif.aiModel) {
+    summary.push(`AI Model: ${exif.aiModel}`);
   }
 
-  if (metadata.approvalTimestamp) {
-    summary.push(`Approved: ${metadata.approvalTimestamp.toLocaleString()}`);
+  if (exif.approvedBy) {
+    summary.push(`Approved By: ${exif.approvedBy}`);
   }
 
-  if (metadata.restorationTimestamp) {
-    summary.push(`Restored: ${metadata.restorationTimestamp.toLocaleString()}`);
+  if (exif.approvalTimestamp) {
+    summary.push(`Approved: ${exif.approvalTimestamp.toLocaleString()}`);
   }
 
-  if (metadata.originalSHA256) {
-    summary.push(`Original SHA-256: ${metadata.originalSHA256.substring(0, 16)}...`);
+  if (exif.restorationTimestamp) {
+    summary.push(`Restored: ${exif.restorationTimestamp.toLocaleString()}`);
   }
 
-  return summary;
+  if (exif.originalSHA256) {
+    summary.push(`Original SHA-256: ${exif.originalSHA256.substring(0, 16)}...`);
+  }
+
+  if (c2pa) {
+    summary.push('\nC2PA Actions:');
+    const actions = getActionSummary(c2pa);
+    summary.push(...actions);
+  }
+
+  return summary.join('\n');
 }
