@@ -1,4 +1,4 @@
-import type { NextFunction, Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { ZodError } from 'zod';
 
 import { logger } from '../../lib/logger.js';
@@ -18,12 +18,7 @@ export interface ErrorResponse {
  * Global error handling middleware
  * Must be registered last in the middleware chain
  */
-export function errorHandler(
-  err: Error,
-  req: Request,
-  res: Response,
-  _next: NextFunction
-): void {
+export function errorHandler(err: Error, req: Request, res: Response): void {
   // Log the error
   logger.error(
     {

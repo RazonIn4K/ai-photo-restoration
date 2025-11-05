@@ -108,11 +108,11 @@ export async function readEXIF(imageBuffer: Buffer): Promise<EXIFMetadata> {
     const tags = await tool.read(tempFile);
 
     // Parse custom metadata from UserComment (stored as JSON)
-    let customMetadata: any = {};
+    let customMetadata: Partial<PhotoRestorationMetadata> = {};
     if (tags.UserComment) {
       try {
         const userComment = String(tags.UserComment);
-        customMetadata = JSON.parse(userComment);
+        customMetadata = JSON.parse(userComment) as Partial<PhotoRestorationMetadata>;
       } catch {
         // Ignore parse errors - UserComment might not be JSON
       }
@@ -142,7 +142,7 @@ export async function readEXIF(imageBuffer: Buffer): Promise<EXIFMetadata> {
       originalPerceptualHash: customMetadata.originalPerceptualHash,
       c2paManifest: customMetadata.c2paManifest,
 
-      rawTags: tags,
+      rawTags: tags
     };
 
     return metadata;
@@ -210,7 +210,7 @@ export async function writeEXIF(
       customMetadata.c2paManifest = metadata.c2paManifest;
     }
 
-    const tags: any = {};
+    const tags: Record<string, string> = {};
     if (Object.keys(customMetadata).length > 0) {
       // Store as JSON in UserComment field
       tags.UserComment = JSON.stringify(customMetadata);
@@ -308,6 +308,6 @@ export async function getImageDimensions(
   return {
     width: metadata.width ?? 0,
     height: metadata.height ?? 0,
-    format: metadata.format,
+    format: metadata.format
   };
 }
