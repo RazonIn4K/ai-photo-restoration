@@ -62,7 +62,6 @@ jobs:
   test:
     needs: [lint-and-format]
     runs-on: ubuntu-latest
-    if: false  # Disabled until real tests are implemented
 
     services:
       mongodb:
