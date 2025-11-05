@@ -36,6 +36,7 @@
   "license": "MIT",
   "dependencies": {
     "dotenv": "^16.4.5",
+    "exiftool-vendored": "^31.2.0",
     "mongodb": "^6.3.0",
     "mongodb-client-encryption": "^6.1.0",
     "mongoose": "^8.3.1",
