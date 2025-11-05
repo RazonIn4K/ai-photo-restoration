@@ -22,7 +22,10 @@
     "format": "prettier --check \"**/*.{ts,tsx,js,json,md}\"",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "prepare": "husky install",
-    "test": "echo 'No tests configured yet.' && exit 0"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage"
   },
   "keywords": [
     "ai",
@@ -45,6 +48,8 @@
     "@types/node": "^20.11.24",
     "@typescript-eslint/eslint-plugin": "^7.6.0",
     "@typescript-eslint/parser": "^7.6.0",
+    "@vitest/coverage-v8": "^2.1.8",
+    "@vitest/ui": "^2.1.8",
     "audit-ci": "^7.0.1",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
@@ -58,6 +63,7 @@
     "tsc-alias": "^1.8.8",
     "tsconfig-paths": "^4.2.0",
     "tsx": "^4.7.1",
-    "typescript": "^5.4.2"
+    "typescript": "^5.4.2",
+    "vitest": "^2.1.8"
   }
 }
