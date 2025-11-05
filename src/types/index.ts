@@ -33,11 +33,17 @@ export interface PhotoAsset {
   originalImageUrl: string;
   originalImageHash: string;
   originalImagePath: string;
+  // Content-Addressed Storage identifiers
+  originalStorageId?: string; // SHA-256 hash for CAS
+  originalSHA256?: string; // Explicit SHA-256 of original
   restoredImageUrl?: string;
   restoredImageHash?: string;
   restoredImagePath?: string;
+  restoredStorageId?: string; // SHA-256 hash for CAS of restored
+  restoredSHA256?: string; // SHA-256 of restored with metadata
   perceptualHash: string;
   restoredPerceptualHash?: string;
+  c2paManifestRef?: string; // Reference to C2PA provenance manifest
   selected: boolean; // For selective restoration
 }
 
