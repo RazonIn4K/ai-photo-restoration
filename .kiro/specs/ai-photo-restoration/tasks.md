@@ -27,24 +27,24 @@
     - Add Config model for system settings and group configurations
     - _Requirements: 4.1, 8.4, 8.5_
 
-- [ ] 3. Build encrypted storage system with cryptographic controls
-  - [ ] 3.1 Implement envelope encryption with per-asset DEK
+- [x] 3. Build encrypted storage system with cryptographic controls
+  - [x] 3.1 Implement envelope encryption with per-asset DEK
     - Create key management system using OS keychain integration
     - Implement AES-256-GCM encryption with authenticated encryption
     - Build cryptographic erasure functionality with DEK zeroization
     - _Requirements: 8.1, 8.6_
 
-  - [ ] 3.2 Create content-addressed file storage
+  - [x] 3.2 Create content-addressed file storage
     - Implement SHA-256 based file organization with directory sharding
     - Build secure file operations with encryption/decryption
     - Add perceptual hashing using sharp-phash for image comparison
     - _Requirements: 1.3, 2.6, 4.2_
 
-  - [ ] 3.3 Implement EXIF and C2PA metadata handling
-    - Integrate exiftool-vendored for reliable EXIF metadata operations
-    - Build C2PA manifest creation and validation using c2pa-node
-    - Create metadata embedding and extraction utilities
-    - _Requirements: 2.5, 4.3, 7.6_
+- [x] 3.3 Implement EXIF and C2PA metadata handling
+  - Integrate exiftool-vendored for reliable EXIF metadata operations
+  - Build C2PA manifest creation and validation using c2pa-node
+  - Create metadata embedding and extraction utilities
+  - _Requirements: 2.5, 4.3, 7.6_
 
 - [ ] 4. Create Express API server with enhanced security
   - [ ] 4.1 Set up Express application with security middleware

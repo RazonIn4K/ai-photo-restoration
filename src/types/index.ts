@@ -1,6 +1,6 @@
 // Core type definitions for the AI Photo Restoration Service
 
-export type RequestStatus = 
+export type RequestStatus =
   | 'queued'
   | 'processing'
   | 'awaiting_manual_approval'
@@ -9,7 +9,7 @@ export type RequestStatus =
   | 'completed'
   | 'failed';
 
-export type IntentCategory = 
+export type IntentCategory =
   | 'simple_enhance'
   | 'colorize_only'
   | 'restore_heavy_damage'
@@ -19,7 +19,9 @@ export type ConsentStatus = 'opted_in' | 'opted_out' | 'unknown';
 
 export type ConsentMethod = 'implicit' | 'explicit';
 
-export type ActionType = 
+export type StorageStatus = 'active' | 'archived' | 'erased';
+
+export type ActionType =
   | 'ingested'
   | 'classified'
   | 'restored'
@@ -39,6 +41,12 @@ export interface PhotoAsset {
   perceptualHash: string;
   restoredPerceptualHash?: string;
   selected: boolean; // For selective restoration
+
+  // Content-addressed storage integration
+  originalStorageId?: string; // CAS blob ID for encrypted original
+  restoredStorageId?: string; // CAS blob ID for encrypted restored image
+  c2paManifestRef?: string; // Reference to C2PA manifest
+  metadataStorageId?: string; // Reference to embedded metadata
 }
 
 export interface ProcessingMetadata {

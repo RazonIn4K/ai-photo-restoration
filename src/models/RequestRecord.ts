@@ -49,6 +49,11 @@ export interface IRequestRecord extends Document {
   // Posting proof
   postingProof?: PostingProofBundle;
 
+  // Storage and lifecycle management
+  storageStatus?: 'active' | 'archived' | 'erased';
+  erasedAt?: Date;
+  retentionExpiresAt?: Date;
+
   // Audit trail
   createdAt: Date;
   updatedAt: Date;
@@ -95,6 +100,21 @@ const PhotoAssetSchema = new Schema(
     selected: {
       type: Boolean,
       default: true
+    },
+    // Content-addressed storage integration
+    originalStorageId: {
+      type: String,
+      index: true
+    },
+    restoredStorageId: {
+      type: String,
+      index: true
+    },
+    c2paManifestRef: {
+      type: String
+    },
+    metadataStorageId: {
+      type: String
     }
   },
   { _id: false }
@@ -272,6 +292,21 @@ const RequestRecordSchema = new Schema<IRequestRecord>(
     },
     postingProof: {
       type: PostingProofBundleSchema
+    },
+    // Storage and lifecycle management
+    storageStatus: {
+      type: String,
+      enum: ['active', 'archived', 'erased'],
+      default: 'active',
+      index: true
+    },
+    erasedAt: {
+      type: Date,
+      index: true
+    },
+    retentionExpiresAt: {
+      type: Date,
+      index: true
     }
   },
   {
