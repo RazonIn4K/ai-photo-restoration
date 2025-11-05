@@ -1,5 +1,6 @@
 import { Schema, model, type Document } from 'mongoose';
 
+import { validateRetentionDays } from '../lib/validation.js';
 import type { ConsentStatus, ConsentMethod } from '../types/index.js';
 
 export interface IConsentRecord extends Document {
@@ -12,6 +13,14 @@ export interface IConsentRecord extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
+
+type ConsentUpdatePayload = {
+  consentStatus: ConsentStatus;
+  consentMethod: ConsentMethod;
+  consentGivenAt: Date;
+  dataRetentionDays: number;
+  optOutReason?: string;
+};
 
 const ConsentRecordSchema = new Schema<IConsentRecord>(
   {
@@ -45,8 +54,10 @@ const ConsentRecordSchema = new Schema<IConsentRecord>(
       type: Number,
       required: true,
       default: 90,
-      min: 1,
-      max: 2555 // ~7 years maximum
+      validate: {
+        validator: validateRetentionDays,
+        message: 'Data retention days must be between 1 and 2555 (approximately 7 years)'
+      }
     }
   },
   {
@@ -60,30 +71,30 @@ ConsentRecordSchema.index({ consentStatus: 1, consentGivenAt: -1 });
 ConsentRecordSchema.index({ consentStatus: 1, updatedAt: -1 });
 
 // Instance method to update consent status
-ConsentRecordSchema.methods.updateConsent = function(
-  status: ConsentStatus, 
+ConsentRecordSchema.methods.updateConsent = function (
+  status: ConsentStatus,
   method: ConsentMethod = 'explicit',
   optOutReason?: string
 ) {
   this.consentStatus = status;
   this.consentMethod = method;
   this.consentGivenAt = new Date();
-  
+
   if (status === 'opted_out' && optOutReason) {
     this.optOutReason = optOutReason;
   }
-  
+
   return this.save();
 };
 
 // Static method to check if user has valid consent
-ConsentRecordSchema.statics.hasValidConsent = async function(facebookUserId: string) {
+ConsentRecordSchema.statics.hasValidConsent = async function (facebookUserId: string) {
   const consent = await this.findOne({ facebookUserId });
-  
+
   if (!consent) {
     return { hasConsent: false, status: 'unknown' as ConsentStatus };
   }
-  
+
   return {
     hasConsent: consent.consentStatus === 'opted_in',
     status: consent.consentStatus,
@@ -93,7 +104,9 @@ ConsentRecordSchema.statics.hasValidConsent = async function(facebookUserId: str
 };
 
 // Static method to find users whose data should be deleted based on retention policy
-ConsentRecordSchema.statics.findExpiredConsents = function(referenceDate: Date = new Date()) {
+ConsentRecordSchema.statics.findExpiredConsents = function (
+  referenceDate: Date = new Date()
+): unknown {
   return this.aggregate([
     {
       $match: {
@@ -103,10 +116,7 @@ ConsentRecordSchema.statics.findExpiredConsents = function(referenceDate: Date =
     {
       $addFields: {
         expirationDate: {
-          $add: [
-            '$updatedAt',
-            { $multiply: ['$dataRetentionDays', 24 * 60 * 60 * 1000] }
-          ]
+          $add: ['$updatedAt', { $multiply: ['$dataRetentionDays', 24 * 60 * 60 * 1000] }]
         }
       }
     },
@@ -130,33 +140,29 @@ ConsentRecordSchema.statics.findExpiredConsents = function(referenceDate: Date =
 };
 
 // Static method to create or update consent record
-ConsentRecordSchema.statics.upsertConsent = function(
+ConsentRecordSchema.statics.upsertConsent = function (
   facebookUserId: string,
   status: ConsentStatus,
   method: ConsentMethod = 'implicit',
   optOutReason?: string,
   dataRetentionDays: number = 90
 ) {
-  const updateData: any = {
+  const updateData: ConsentUpdatePayload = {
     consentStatus: status,
     consentMethod: method,
     consentGivenAt: new Date(),
     dataRetentionDays
   };
-  
+
   if (status === 'opted_out' && optOutReason) {
     updateData.optOutReason = optOutReason;
   }
-  
-  return this.findOneAndUpdate(
-    { facebookUserId },
-    updateData,
-    { 
-      upsert: true, 
-      new: true,
-      setDefaultsOnInsert: true
-    }
-  );
+
+  return this.findOneAndUpdate({ facebookUserId }, updateData, {
+    upsert: true,
+    new: true,
+    setDefaultsOnInsert: true
+  });
 };
 
 export const ConsentRecordModel = model<IConsentRecord>('ConsentRecord', ConsentRecordSchema);

@@ -1,4 +1,4 @@
-import pino from 'pino';
+import { pino } from 'pino';
 
 import { env } from '../config/index.js';
 

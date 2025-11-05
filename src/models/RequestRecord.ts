@@ -1,12 +1,18 @@
 import { Schema, model, type Document } from 'mongoose';
 import { ulid } from 'ulid';
 
-import type { 
-  RequestStatus, 
-  IntentCategory, 
-  PhotoAsset, 
-  ProcessingMetadata, 
-  PostingProofBundle 
+import {
+  validateFacebookUrl,
+  sanitizeUserInput,
+  validateConfidenceScore,
+  validateProcessingCost
+} from '../lib/validation.js';
+import type {
+  RequestStatus,
+  IntentCategory,
+  PhotoAsset,
+  ProcessingMetadata,
+  PostingProofBundle
 } from '../types/index.js';
 
 export interface IRequestRecord extends Document {
@@ -17,130 +23,146 @@ export interface IRequestRecord extends Document {
   posterFacebookId?: string;
   postUrl: string;
   userRequest: string;
-  
+
   // Multi-photo support
   assets: PhotoAsset[];
-  
+
   // Processing metadata
   intentCategory?: IntentCategory;
   classificationConfidence?: number;
   routingDecision?: 'local' | 'cloud' | 'triage';
-  
+
   // Status tracking
   status: RequestStatus;
   queuedAt?: Date;
   processedAt?: Date;
   reviewedAt?: Date;
   postedAt?: Date;
-  
+
   // Processing results
   processingMetadata?: ProcessingMetadata;
-  
+
   // Approval workflow
   reviewedBy?: string;
   approvalNotes?: string;
-  
+
   // Posting proof
   postingProof?: PostingProofBundle;
-  
+
   // Audit trail
   createdAt: Date;
   updatedAt: Date;
 }
 
-const PhotoAssetSchema = new Schema({
-  assetId: {
-    type: String,
-    required: true,
-    default: () => ulid()
+const PhotoAssetSchema = new Schema(
+  {
+    assetId: {
+      type: String,
+      required: true,
+      default: () => ulid()
+    },
+    originalImageUrl: {
+      type: String,
+      required: true
+    },
+    originalImageHash: {
+      type: String,
+      required: true,
+      index: true
+    },
+    originalImagePath: {
+      type: String,
+      required: true
+    },
+    restoredImageUrl: {
+      type: String
+    },
+    restoredImageHash: {
+      type: String,
+      index: true
+    },
+    restoredImagePath: {
+      type: String
+    },
+    perceptualHash: {
+      type: String,
+      required: true,
+      index: true
+    },
+    restoredPerceptualHash: {
+      type: String
+    },
+    selected: {
+      type: Boolean,
+      default: true
+    }
   },
-  originalImageUrl: {
-    type: String,
-    required: true
-  },
-  originalImageHash: {
-    type: String,
-    required: true,
-    index: true
-  },
-  originalImagePath: {
-    type: String,
-    required: true
-  },
-  restoredImageUrl: {
-    type: String
-  },
-  restoredImageHash: {
-    type: String,
-    index: true
-  },
-  restoredImagePath: {
-    type: String
-  },
-  perceptualHash: {
-    type: String,
-    required: true,
-    index: true
-  },
-  restoredPerceptualHash: {
-    type: String
-  },
-  selected: {
-    type: Boolean,
-    default: true
-  }
-}, { _id: false });
+  { _id: false }
+);
 
-const ProcessingMetadataSchema = new Schema({
-  modelUsed: {
-    type: String,
-    required: true
+const ProcessingMetadataSchema = new Schema(
+  {
+    modelUsed: {
+      type: String,
+      required: true
+    },
+    cost: {
+      type: Number,
+      validate: {
+        validator: validateProcessingCost,
+        message: 'Processing cost must be between 0 and 1000'
+      }
+    },
+    appliedEffects: [
+      {
+        type: String
+      }
+    ],
+    processingTimeMs: {
+      type: Number,
+      min: 0
+    },
+    confidenceScore: {
+      type: Number,
+      validate: {
+        validator: validateConfidenceScore,
+        message: 'Confidence score must be between 0 and 1'
+      }
+    }
   },
-  cost: {
-    type: Number,
-    min: 0
-  },
-  appliedEffects: [{
-    type: String
-  }],
-  processingTimeMs: {
-    type: Number,
-    min: 0
-  },
-  confidenceScore: {
-    type: Number,
-    min: 0,
-    max: 1
-  }
-}, { _id: false });
+  { _id: false }
+);
 
-const PostingProofBundleSchema = new Schema({
-  commentUrl: {
-    type: String,
-    required: true
+const PostingProofBundleSchema = new Schema(
+  {
+    commentUrl: {
+      type: String,
+      required: true
+    },
+    postedAt: {
+      type: Date,
+      required: true
+    },
+    screenshotPath: {
+      type: String
+    },
+    c2paManifestPath: {
+      type: String,
+      required: true
+    },
+    waczPath: {
+      type: String
+    },
+    verifierSignature: {
+      type: String,
+      required: true
+    },
+    notes: {
+      type: String
+    }
   },
-  postedAt: {
-    type: Date,
-    required: true
-  },
-  screenshotPath: {
-    type: String
-  },
-  c2paManifestPath: {
-    type: String,
-    required: true
-  },
-  waczPath: {
-    type: String
-  },
-  verifierSignature: {
-    type: String,
-    required: true
-  },
-  notes: {
-    type: String
-  }
-}, { _id: false });
+  { _id: false }
+);
 
 const RequestRecordSchema = new Schema<IRequestRecord>(
   {
@@ -173,17 +195,23 @@ const RequestRecordSchema = new Schema<IRequestRecord>(
       type: String,
       required: true,
       unique: true,
-      index: true
+      index: true,
+      validate: {
+        validator: validateFacebookUrl,
+        message: 'Post URL must be a valid Facebook URL'
+      }
     },
     userRequest: {
       type: String,
-      required: true
+      required: true,
+      maxlength: [10000, 'User request cannot exceed 10,000 characters'],
+      set: sanitizeUserInput
     },
     assets: {
       type: [PhotoAssetSchema],
       required: true,
       validate: {
-        validator: function(assets: PhotoAsset[]) {
+        validator: function (assets: PhotoAsset[]) {
           return assets.length > 0;
         },
         message: 'At least one photo asset is required'
@@ -195,8 +223,10 @@ const RequestRecordSchema = new Schema<IRequestRecord>(
     },
     classificationConfidence: {
       type: Number,
-      min: 0,
-      max: 1
+      validate: {
+        validator: validateConfidenceScore,
+        message: 'Classification confidence must be between 0 and 1'
+      }
     },
     routingDecision: {
       type: String,
@@ -254,18 +284,19 @@ const RequestRecordSchema = new Schema<IRequestRecord>(
 RequestRecordSchema.index({ status: 1, queuedAt: 1 });
 RequestRecordSchema.index({ facebookGroupId: 1, createdAt: -1 });
 RequestRecordSchema.index({ reviewedBy: 1, reviewedAt: -1 });
-RequestRecordSchema.index({ 'assets.originalImageHash': 1 });
-RequestRecordSchema.index({ 'assets.restoredImageHash': 1 });
 
 // Virtual for getting selected assets
-RequestRecordSchema.virtual('selectedAssets').get(function() {
+RequestRecordSchema.virtual('selectedAssets').get(function () {
   return this.assets.filter(asset => asset.selected);
 });
 
 // Instance method to update status with automatic timestamp
-RequestRecordSchema.methods.updateStatus = function(newStatus: RequestStatus, operatorId?: string) {
+RequestRecordSchema.methods.updateStatus = function (
+  newStatus: RequestStatus,
+  operatorId?: string
+) {
   this.status = newStatus;
-  
+
   switch (newStatus) {
     case 'queued':
       this.queuedAt = new Date();
@@ -285,21 +316,18 @@ RequestRecordSchema.methods.updateStatus = function(newStatus: RequestStatus, op
       this.postedAt = new Date();
       break;
   }
-  
+
   return this.save();
 };
 
 // Static method to find requests by status with pagination
-RequestRecordSchema.statics.findByStatus = function(
-  status: RequestStatus, 
-  options: { limit?: number; skip?: number; sort?: any } = {}
+RequestRecordSchema.statics.findByStatus = function (
+  status: RequestStatus,
+  options: { limit?: number; skip?: number; sort?: Record<string, 1 | -1> } = {}
 ) {
   const { limit = 50, skip = 0, sort = { createdAt: -1 } } = options;
-  
-  return this.find({ status })
-    .sort(sort)
-    .limit(limit)
-    .skip(skip);
+
+  return this.find({ status }).sort(sort).limit(limit).skip(skip);
 };
 
 export const RequestRecordModel = model<IRequestRecord>('RequestRecord', RequestRecordSchema);

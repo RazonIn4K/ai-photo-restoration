@@ -6,3 +6,6 @@ export { ConfigModel, GroupConfigModel, type IConfig, type IGroupConfig } from '
 
 // Re-export types for convenience
 export type * from '../types/index.js';
+
+// Export validation helpers
+export { validateModels, initializeModels, getDatabaseStats } from '../database/models.js';

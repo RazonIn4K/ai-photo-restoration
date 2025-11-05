@@ -1,10 +1,10 @@
 import { Schema, model, type Document } from 'mongoose';
 
-import type { GroupConfig, VersionedSelectors } from '../types/index.js';
+import type { VersionedSelectors } from '../types/index.js';
 
 export interface IConfig extends Document {
   configKey: string;
-  configValue: any;
+  configValue: unknown;
   description?: string;
   isActive: boolean;
   createdAt: Date;
@@ -24,27 +24,30 @@ export interface IGroupConfig extends Document {
   updatedAt: Date;
 }
 
-const VersionedSelectorsSchema = new Schema({
-  version: {
-    type: String,
-    required: true
+const VersionedSelectorsSchema = new Schema(
+  {
+    version: {
+      type: String,
+      required: true
+    },
+    selectors: {
+      type: Schema.Types.Mixed,
+      required: true,
+      default: {}
+    },
+    lastUpdated: {
+      type: Date,
+      required: true,
+      default: Date.now
+    },
+    isActive: {
+      type: Boolean,
+      required: true,
+      default: true
+    }
   },
-  selectors: {
-    type: Schema.Types.Mixed,
-    required: true,
-    default: {}
-  },
-  lastUpdated: {
-    type: Date,
-    required: true,
-    default: Date.now
-  },
-  isActive: {
-    type: Boolean,
-    required: true,
-    default: true
-  }
-}, { _id: false });
+  { _id: false }
+);
 
 const ConfigSchema = new Schema<IConfig>(
   {
@@ -89,10 +92,12 @@ const GroupConfigSchema = new Schema<IGroupConfig>(
       type: VersionedSelectorsSchema,
       required: true
     },
-    keywords: [{
-      type: String,
-      required: true
-    }],
+    keywords: [
+      {
+        type: String,
+        required: true
+      }
+    ],
     lastScanTimestamp: {
       type: Date,
       required: true,
@@ -129,43 +134,43 @@ GroupConfigSchema.index({ isActive: 1, lastScanTimestamp: -1 });
 GroupConfigSchema.index({ extractionMethod: 1, isActive: 1 });
 
 // Static methods for Config model
-ConfigSchema.statics.getValue = async function(key: string, defaultValue?: any) {
+ConfigSchema.statics.getValue = async function (key: string, defaultValue?: unknown) {
   const config = await this.findOne({ configKey: key, isActive: true });
   return config ? config.configValue : defaultValue;
 };
 
-ConfigSchema.statics.setValue = function(key: string, value: any, description?: string) {
+ConfigSchema.statics.setValue = function (key: string, value: unknown, description?: string) {
   return this.findOneAndUpdate(
     { configKey: key },
-    { 
+    {
       configValue: value,
       description,
       isActive: true
     },
-    { 
-      upsert: true, 
+    {
+      upsert: true,
       new: true,
       setDefaultsOnInsert: true
     }
   );
 };
 
-ConfigSchema.statics.getActiveConfigs = function() {
+ConfigSchema.statics.getActiveConfigs = function () {
   return this.find({ isActive: true }).sort({ configKey: 1 });
 };
 
 // Static methods for GroupConfig model
-GroupConfigSchema.statics.getActiveGroups = function() {
+GroupConfigSchema.statics.getActiveGroups = function () {
   return this.find({ isActive: true }).sort({ lastScanTimestamp: 1 });
 };
 
-GroupConfigSchema.statics.updateSelectors = function(
-  groupId: string, 
+GroupConfigSchema.statics.updateSelectors = function (
+  groupId: string,
   newSelectors: Record<string, string>,
   version?: string
 ) {
   const selectorVersion = version || new Date().toISOString();
-  
+
   return this.findOneAndUpdate(
     { groupId },
     {
@@ -180,17 +185,17 @@ GroupConfigSchema.statics.updateSelectors = function(
   );
 };
 
-GroupConfigSchema.statics.updateLastScan = function(groupId: string, timestamp: Date = new Date()) {
-  return this.findOneAndUpdate(
-    { groupId },
-    { lastScanTimestamp: timestamp },
-    { new: true }
-  );
+GroupConfigSchema.statics.updateLastScan = function (
+  groupId: string,
+  timestamp: Date = new Date()
+) {
+  return this.findOneAndUpdate({ groupId }, { lastScanTimestamp: timestamp }, { new: true });
 };
 
-GroupConfigSchema.statics.getGroupsForScan = function(maxAge: number = 3600000) { // 1 hour default
+GroupConfigSchema.statics.getGroupsForScan = function (maxAge: number = 3600000) {
+  // 1 hour default
   const cutoff = new Date(Date.now() - maxAge);
-  
+
   return this.find({
     isActive: true,
     lastScanTimestamp: { $lte: cutoff }
@@ -198,7 +203,7 @@ GroupConfigSchema.statics.getGroupsForScan = function(maxAge: number = 3600000) 
 };
 
 // Instance method to update selector version
-GroupConfigSchema.methods.updateSelectorVersion = function(
+GroupConfigSchema.methods.updateSelectorVersion = function (
   newSelectors: Record<string, string>,
   version?: string
 ) {
@@ -206,12 +211,12 @@ GroupConfigSchema.methods.updateSelectorVersion = function(
   this.selectors.selectors = newSelectors;
   this.selectors.lastUpdated = new Date();
   this.selectors.isActive = true;
-  
+
   return this.save();
 };
 
 // Instance method to mark group as scanned
-GroupConfigSchema.methods.markScanned = function(timestamp: Date = new Date()) {
+GroupConfigSchema.methods.markScanned = function (timestamp: Date = new Date()) {
   this.lastScanTimestamp = timestamp;
   return this.save();
 };
