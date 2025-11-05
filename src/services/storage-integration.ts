@@ -241,7 +241,8 @@ export async function retrievePhoto(
 
     return {
       buffer: result.data,
-      metadata: result.metadata.customMetadata || result.metadata
+      metadata:
+        result.metadata.customMetadata || (result.metadata as unknown as Record<string, unknown>)
     };
   } catch (error) {
     logger.error({ storageId, error }, 'Photo retrieval failed');
