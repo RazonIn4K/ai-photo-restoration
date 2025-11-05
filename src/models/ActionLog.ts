@@ -121,11 +121,18 @@ ActionLogSchema.statics.verifyHashChain = async function (
   startDate?: Date,
   endDate?: Date
 ) {
-  const query: Record<string, unknown> = { requestId };
+  type TimestampRange = { $gte?: Date; $lte?: Date };
+  const query: { requestId: string; timestamp?: TimestampRange } = { requestId };
+
   if (startDate || endDate) {
-    query.timestamp = {};
-    if (startDate) query.timestamp.$gte = startDate;
-    if (endDate) query.timestamp.$lte = endDate;
+    const timestampQuery: TimestampRange = {};
+    if (startDate) {
+      timestampQuery.$gte = startDate;
+    }
+    if (endDate) {
+      timestampQuery.$lte = endDate;
+    }
+    query.timestamp = timestampQuery;
   }
 
   const logs = await this.find(query).sort({ timestamp: 1 });

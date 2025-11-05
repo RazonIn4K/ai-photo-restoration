@@ -67,9 +67,63 @@ export function buildAutoEncryptionOptions(
   };
 }
 
-async function loadClientEncryption() {
-  const clientEncryption = await import('mongodb-client-encryption');
-  return clientEncryption;
+type ClientEncryptionOptions = {
+  keyVaultNamespace: string;
+  kmsProviders: KMSProviders;
+  keyVaultClient?: MongoClient;
+  [key: string]: unknown;
+};
+
+type ClientEncryptionInstance = {
+  createDataKey: (provider: string, options: { keyAltNames: string[] }) => Promise<Buffer>;
+  close?: () => Promise<void | undefined>;
+};
+
+type ClientEncryptionConstructor = new (
+  client: MongoClient,
+  options: ClientEncryptionOptions
+) => ClientEncryptionInstance;
+
+async function loadClientEncryption(): Promise<ClientEncryptionConstructor> {
+  const importedModule = (await import('mongodb-client-encryption')) as unknown;
+
+  let ClientEncryption: ClientEncryptionConstructor | undefined;
+
+  if (typeof importedModule === 'function') {
+    ClientEncryption = importedModule as ClientEncryptionConstructor;
+  } else if (
+    typeof importedModule === 'object' &&
+    importedModule !== null &&
+    'ClientEncryption' in importedModule &&
+    typeof (importedModule as Record<string, unknown>).ClientEncryption === 'function'
+  ) {
+    ClientEncryption = (importedModule as { ClientEncryption: ClientEncryptionConstructor })
+      .ClientEncryption;
+  } else if (
+    typeof importedModule === 'object' &&
+    importedModule !== null &&
+    'default' in importedModule
+  ) {
+    const defaultExport = (importedModule as { default: unknown }).default;
+
+    if (typeof defaultExport === 'function') {
+      ClientEncryption = defaultExport as ClientEncryptionConstructor;
+    } else if (
+      typeof defaultExport === 'object' &&
+      defaultExport !== null &&
+      'ClientEncryption' in defaultExport &&
+      typeof (defaultExport as Record<string, unknown>).ClientEncryption === 'function'
+    ) {
+      ClientEncryption = (defaultExport as { ClientEncryption: ClientEncryptionConstructor })
+        .ClientEncryption;
+    }
+  }
+
+  if (!ClientEncryption) {
+    throw new Error('ClientEncryption is not available in mongodb-client-encryption module');
+  }
+
+  return ClientEncryption;
 }
 
 export async function ensureKeyVaultArtifacts(client: MongoClient): Promise<void> {
@@ -113,10 +167,7 @@ export async function ensureDefaultDataKey(client: MongoClient): Promise<string 
     return existingKey._id.toString('base64');
   }
 
-  const clientEncryption = await loadClientEncryption();
-  // @ts-expect-error - ClientEncryption exists but TypeScript can't infer it properly
-  const ClientEncryption =
-    clientEncryption.ClientEncryption || clientEncryption.default?.ClientEncryption;
+  const ClientEncryption = await loadClientEncryption();
 
   const encryption = new ClientEncryption(client, {
     keyVaultNamespace,
