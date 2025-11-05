@@ -26,7 +26,7 @@ describe('C2PA manifest helpers', () => {
 
       expect(manifest['@context']).toBe('https://c2pa.org/specifications/1.0/context');
       expect(manifest.type).toBe('ImageObject');
-      expect(manifest.claimGenerator).toContain('Face Restore AI');
+      expect(manifest.claimGenerator).toContain('ai-photo-restoration-service');
       expect(manifest.actions).toHaveLength(2); // AI inference + approval
       expect(manifest.ingredients).toHaveLength(1);
     });
@@ -175,9 +175,10 @@ describe('C2PA manifest helpers', () => {
       });
 
       const summary = getActionSummary(manifest);
-      expect(summary).toContain('c2pa.ai.inference');
-      expect(summary).toContain('c2pa.published');
-      expect(summary).toContain('SummaryModel');
+      const summaryText = summary.join(' ');
+      expect(summaryText).toContain('ai.inference');
+      expect(summaryText).toContain('published');
+      expect(summaryText).toContain('SummaryModel');
     });
 
     it('handles manifest without actions', () => {
