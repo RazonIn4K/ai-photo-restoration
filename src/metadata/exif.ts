@@ -22,21 +22,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 /**
- * Extended Tags interface with our custom fields
- */
-interface ExtendedTags extends Tags {
-  OriginalPostId?: string;
-  RequestId?: string;
-  ApprovalTimestamp?: string;
-  RestorationTimestamp?: string;
-  AIModel?: string;
-  ApprovedBy?: string;
-  OriginalSHA256?: string;
-  OriginalPerceptualHash?: string;
-  c2paManifest?: string;
-}
-
-/**
  * Custom EXIF tags for photo restoration tracking
  */
 export interface PhotoRestorationMetadata {
@@ -56,6 +41,8 @@ export interface PhotoRestorationMetadata {
   originalSHA256?: string;
   /** Perceptual hash of the original photo */
   originalPerceptualHash?: string;
+  /** C2PA manifest (JSON string) */
+  c2paManifest?: string;
 }
 
 /**
@@ -120,6 +107,17 @@ export async function readEXIF(imageBuffer: Buffer): Promise<EXIFMetadata> {
 
     const tags = await tool.read(tempFile);
 
+    // Parse custom metadata from UserComment (stored as JSON)
+    let customMetadata: any = {};
+    if (tags.UserComment) {
+      try {
+        const userComment = String(tags.UserComment);
+        customMetadata = JSON.parse(userComment);
+      } catch {
+        // Ignore parse errors - UserComment might not be JSON
+      }
+    }
+
     // Extract standard metadata
     const metadata: EXIFMetadata = {
       width: tags.ImageWidth,
@@ -129,19 +127,20 @@ export async function readEXIF(imageBuffer: Buffer): Promise<EXIFMetadata> {
       make: tags.Make,
       model: tags.Model,
 
-      // Extract custom restoration metadata (if present)
-      originalPostId: (tags as ExtendedTags).OriginalPostId || '',
-      requestId: (tags as ExtendedTags).RequestId || '',
-      approvalTimestamp: (tags as ExtendedTags).ApprovalTimestamp
-        ? new Date((tags as ExtendedTags).ApprovalTimestamp!)
+      // Extract custom restoration metadata from parsed JSON
+      originalPostId: customMetadata.originalPostId || '',
+      requestId: customMetadata.requestId || '',
+      approvalTimestamp: customMetadata.approvalTimestamp
+        ? new Date(customMetadata.approvalTimestamp)
         : undefined,
-      restorationTimestamp: (tags as ExtendedTags).RestorationTimestamp
-        ? new Date((tags as ExtendedTags).RestorationTimestamp!)
+      restorationTimestamp: customMetadata.restorationTimestamp
+        ? new Date(customMetadata.restorationTimestamp)
         : undefined,
-      aiModel: (tags as ExtendedTags).AIModel,
-      approvedBy: (tags as ExtendedTags).ApprovedBy,
-      originalSHA256: (tags as ExtendedTags).OriginalSHA256,
-      originalPerceptualHash: (tags as ExtendedTags).OriginalPerceptualHash,
+      aiModel: customMetadata.aiModel,
+      approvedBy: customMetadata.approvedBy,
+      originalSHA256: customMetadata.originalSHA256,
+      originalPerceptualHash: customMetadata.originalPerceptualHash,
+      c2paManifest: customMetadata.c2paManifest,
 
       rawTags: tags,
     };
@@ -179,34 +178,42 @@ export async function writeEXIF(
   try {
     await writeFile(tempInputFile, imageBuffer);
 
-    // Build EXIF tags to write
-    const tags: Partial<ExtendedTags> = {};
+    // Build EXIF tags to write using standard EXIF/XMP fields
+    // We'll store custom metadata in JSON format in UserComment
+    const customMetadata: Record<string, string> = {};
 
-    // Use UserComment and ImageDescription fields for custom data
-    // These are standard EXIF fields that support arbitrary text
     if (metadata.originalPostId) {
-      tags.OriginalPostId = metadata.originalPostId;
+      customMetadata.originalPostId = metadata.originalPostId;
     }
     if (metadata.requestId) {
-      tags.RequestId = metadata.requestId;
+      customMetadata.requestId = metadata.requestId;
     }
     if (metadata.approvalTimestamp) {
-      tags.ApprovalTimestamp = metadata.approvalTimestamp.toISOString();
+      customMetadata.approvalTimestamp = metadata.approvalTimestamp.toISOString();
     }
     if (metadata.restorationTimestamp) {
-      tags.RestorationTimestamp = metadata.restorationTimestamp.toISOString();
+      customMetadata.restorationTimestamp = metadata.restorationTimestamp.toISOString();
     }
     if (metadata.aiModel) {
-      tags.AIModel = metadata.aiModel;
+      customMetadata.aiModel = metadata.aiModel;
     }
     if (metadata.approvedBy) {
-      tags.ApprovedBy = metadata.approvedBy;
+      customMetadata.approvedBy = metadata.approvedBy;
     }
     if (metadata.originalSHA256) {
-      tags.OriginalSHA256 = metadata.originalSHA256;
+      customMetadata.originalSHA256 = metadata.originalSHA256;
     }
     if (metadata.originalPerceptualHash) {
-      tags.OriginalPerceptualHash = metadata.originalPerceptualHash;
+      customMetadata.originalPerceptualHash = metadata.originalPerceptualHash;
+    }
+    if (metadata.c2paManifest) {
+      customMetadata.c2paManifest = metadata.c2paManifest;
+    }
+
+    const tags: any = {};
+    if (Object.keys(customMetadata).length > 0) {
+      // Store as JSON in UserComment field
+      tags.UserComment = JSON.stringify(customMetadata);
     }
 
     // Write tags to output file

@@ -43,6 +43,5 @@ export {
   extractCompleteMetadata,
   verifyMetadataIntegrity,
   getMetadataSummary,
-  type CompleteMetadata,
   type EmbedResult,
 } from './embed.js';
