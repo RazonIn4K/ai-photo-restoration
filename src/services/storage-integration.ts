@@ -14,11 +14,12 @@
 import { createHash } from 'node:crypto';
 
 import { computePerceptualHash } from '../hash/perceptual.js';
-import { embedCompleteMetadata, extractCompleteMetadata } from '../metadata/index.js';
 import {
-  ContentAddressedStorage,
-  type StorageCategory
-} from '../storage/content-addressed.js';
+  embedCompleteMetadata,
+  extractCompleteMetadata,
+  type C2PAManifest
+} from '../metadata/index.js';
+import { ContentAddressedStorage, type StorageCategory } from '../storage/content-addressed.js';
 
 /**
  * Valid photo storage categories (excluding 'keys' which is internal)
@@ -76,7 +77,7 @@ export interface PhotoRetrievalResult {
     originalPerceptualHash?: string;
   };
   /** Extracted C2PA manifest (if present) */
-  c2pa: any | null;
+  c2pa: C2PAManifest | null;
 }
 
 /**
@@ -184,24 +185,20 @@ export class StorageIntegrationService {
 
     // Store encrypted photo with embedded metadata
     // SHA-256 is computed automatically by CAS
-    const storeResult = await this.storage.store(
-      this.category,
-      withMetadata.imageBuffer,
-      {
-        size: withMetadata.imageBuffer.length,
-        mimeType: 'image/jpeg',
-        perceptualHash: phashResult.hash,
-        customMetadata: {
-          originalPostId: metadata.originalPostId,
-          requestId: metadata.requestId,
-          aiModel: metadata.aiModel,
-          width: phashResult.width,
-          height: phashResult.height,
-          type: 'restored',
-          hasMetadata: true
-        }
+    const storeResult = await this.storage.store(this.category, withMetadata.imageBuffer, {
+      size: withMetadata.imageBuffer.length,
+      mimeType: 'image/jpeg',
+      perceptualHash: phashResult.hash,
+      customMetadata: {
+        originalPostId: metadata.originalPostId,
+        requestId: metadata.requestId,
+        aiModel: metadata.aiModel,
+        width: phashResult.width,
+        height: phashResult.height,
+        type: 'restored',
+        hasMetadata: true
       }
-    );
+    });
 
     return {
       storageId: storeResult.sha256,
@@ -276,9 +273,7 @@ export class StorageIntegrationService {
    */
   async verifyPhotoIntegrity(storageId: string, expectedHash: string): Promise<boolean> {
     if (storageId !== expectedHash) {
-      throw new Error(
-        `Storage ID mismatch: expected ${expectedHash}, got ${storageId}`
-      );
+      throw new Error(`Storage ID mismatch: expected ${expectedHash}, got ${storageId}`);
     }
 
     // Attempt retrieval (will throw if missing or decrypt fails)
@@ -288,9 +283,7 @@ export class StorageIntegrationService {
     const actualHash = createHash('sha256').update(result.data).digest('hex');
 
     if (actualHash !== expectedHash) {
-      throw new Error(
-        `Data integrity failure: expected hash ${expectedHash}, got ${actualHash}`
-      );
+      throw new Error(`Data integrity failure: expected hash ${expectedHash}, got ${actualHash}`);
     }
 
     return true;
