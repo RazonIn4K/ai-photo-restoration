@@ -74,6 +74,11 @@ export interface C2PAActionEntry {
   when: Date;
   /** Software that performed the action */
   softwareAgent?: string;
+  /** Participants in the action */
+  participants?: Array<{
+    type: 'person' | 'organization';
+    name: string;
+  }>;
   /** Parameters used */
   parameters?: Record<string, unknown>;
   /** Changes made */
@@ -183,6 +188,20 @@ export function createRestorationManifest(params: {
           },
         ],
       },
+      ...(params.approvedBy
+        ? [
+            {
+              action: 'c2pa.published' as const,
+              when: params.approvalTimestamp || params.restorationTimestamp,
+              participants: [
+                {
+                  type: 'person' as const,
+                  name: params.approvedBy,
+                },
+              ],
+            },
+          ]
+        : []),
     ],
     assertions: [
       {
@@ -207,7 +226,7 @@ export function createRestorationManifest(params: {
     ],
     ingredients: [
       {
-        title: 'Original Photo',
+        title: `Original Photo (${params.originalPostId})`,
         format: 'image/jpeg',
         documentId: params.originalPostId,
         relationship: 'parentOf',
@@ -255,13 +274,13 @@ export function validateManifest(manifest: unknown): C2PAValidationResult {
 
   // Required fields
   if (!m['@context']) {
-    errors.push('Missing @context');
+    errors.push('Missing required @context field');
   }
   if (!m.type) {
-    errors.push('Missing type');
+    errors.push('Missing required type field');
   }
   if (!m.claimGenerator) {
-    errors.push('Missing claimGenerator');
+    errors.push('Missing required claimGenerator field');
   }
 
   // Optional but recommended

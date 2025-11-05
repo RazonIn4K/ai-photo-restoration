@@ -74,6 +74,17 @@ const PhotoAssetSchema = new Schema(
       type: String,
       required: true
     },
+    // Content-Addressed Storage identifiers
+    originalStorageId: {
+      type: String,
+      index: true,
+      comment: 'SHA-256 hash for content-addressed storage'
+    },
+    originalSHA256: {
+      type: String,
+      index: true,
+      comment: 'Explicit SHA-256 hash of original image'
+    },
     restoredImageUrl: {
       type: String
     },
@@ -84,6 +95,16 @@ const PhotoAssetSchema = new Schema(
     restoredImagePath: {
       type: String
     },
+    restoredStorageId: {
+      type: String,
+      index: true,
+      comment: 'SHA-256 hash for content-addressed storage of restored image'
+    },
+    restoredSHA256: {
+      type: String,
+      index: true,
+      comment: 'Explicit SHA-256 hash of restored image with embedded metadata'
+    },
     perceptualHash: {
       type: String,
       required: true,
@@ -91,6 +112,11 @@ const PhotoAssetSchema = new Schema(
     },
     restoredPerceptualHash: {
       type: String
+    },
+    // C2PA provenance reference
+    c2paManifestRef: {
+      type: String,
+      comment: 'Reference to C2PA manifest (JSON string or storage path)'
     },
     selected: {
       type: Boolean,

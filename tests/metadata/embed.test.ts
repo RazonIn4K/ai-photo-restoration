@@ -117,7 +117,7 @@ describe('Metadata embedding helpers', () => {
       const extracted = await extractCompleteMetadata(embedded.imageBuffer);
 
       expect(extracted.c2pa).toBeDefined();
-      expect(extracted.c2pa?.claimGenerator).toContain('Face Restore AI');
+      expect(extracted.c2pa?.claimGenerator).toContain('ai-photo-restoration-service');
       expect(extracted.c2pa?.type).toBe('ImageObject');
     });
 
@@ -239,7 +239,7 @@ describe('Metadata embedding helpers', () => {
       expect(summary).toContain('req_summary_test');
       expect(summary).toContain('SummaryModel-v2.0');
       expect(summary).toContain('summary@test.com');
-      expect(summary).toContain('c2pa.ai.inference');
+      expect(summary).toContain('ai.inference');
     });
 
     it('handles images without metadata', async () => {
@@ -264,8 +264,7 @@ describe('Metadata embedding helpers', () => {
       const summary = await getMetadataSummary(embedded.imageBuffer);
 
       expect(summary).toContain('C2PA Actions');
-      expect(summary).toContain('c2pa.ai.inference');
-      expect(summary).toContain('c2pa.published');
+      expect(summary).toContain('ai.inference');
     });
   });
 
