@@ -274,25 +274,19 @@ export async function verifyEXIF(
 export async function stripEXIF(imageBuffer: Buffer): Promise<Buffer> {
   const tool = getExifTool();
 
-  const tempInputFile = join(tmpdir(), `exif-strip-input-${randomBytes(8).toString('hex')}.tmp`);
-  const tempOutputFile = join(tmpdir(), `exif-strip-output-${randomBytes(8).toString('hex')}.tmp`);
+  const tempFile = join(tmpdir(), `exif-strip-${randomBytes(8).toString('hex')}.tmp`);
 
   try {
-    await writeFile(tempInputFile, imageBuffer);
+    await writeFile(tempFile, imageBuffer);
 
-    // Strip all metadata
-    await tool.write(tempInputFile, {}, ['-all=', '-o', tempOutputFile]);
+    // Strip all metadata (exiftool modifies in place)
+    await tool.write(tempFile, {}, ['-all=']);
 
-    const outputBuffer = await readFile(tempOutputFile);
+    const outputBuffer = await readFile(tempFile);
     return outputBuffer;
   } finally {
     try {
-      await unlink(tempInputFile);
-    } catch {
-      /* ignore */
-    }
-    try {
-      await unlink(tempOutputFile);
+      await unlink(tempFile);
     } catch {
       /* ignore */
     }
