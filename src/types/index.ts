@@ -1,25 +1,28 @@
 // Core type definitions for the AI Photo Restoration Service
 
-export type RequestStatus = 
+export type RequestStatus =
   | 'queued'
   | 'processing'
+  | 'pending_review' // Flagged for human triage
   | 'awaiting_manual_approval'
   | 'approved_pending_post'
   | 'rejected'
   | 'completed'
   | 'failed';
 
-export type IntentCategory = 
-  | 'simple_enhance'
-  | 'colorize_only'
-  | 'restore_heavy_damage'
-  | 'custom_request';
+export type IntentCategory =
+  | 'color_restoration' // Colorize black & white photos
+  | 'damage_repair' // Fix tears, scratches, stains
+  | 'quality_enhancement' // Upscale, denoise, sharpen
+  | 'face_restoration' // Restore facial details
+  | 'general_restoration' // Multiple restoration needs
+  | 'unknown'; // Unable to determine intent
 
 export type ConsentStatus = 'opted_in' | 'opted_out' | 'unknown';
 
 export type ConsentMethod = 'implicit' | 'explicit';
 
-export type ActionType = 
+export type ActionType =
   | 'ingested'
   | 'classified'
   | 'restored'
@@ -48,11 +51,17 @@ export interface PhotoAsset {
 }
 
 export interface ProcessingMetadata {
-  modelUsed: string;
+  modelUsed?: string;
   cost?: number;
-  appliedEffects: string[];
+  appliedEffects?: string[];
   processingTimeMs?: number;
   confidenceScore?: number;
+  classification?: {
+    keywords: string[];
+    requiresHumanReview: boolean;
+    complexityScore: number;
+    classifiedAt: Date;
+  };
 }
 
 export interface PostingProofBundle {

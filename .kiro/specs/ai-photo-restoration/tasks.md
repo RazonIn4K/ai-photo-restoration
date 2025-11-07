@@ -93,27 +93,27 @@
     - _Requirements: 6.4_
 
 - [ ] 6. Build AI processing pipeline with multi-platform support
-  - [ ] 6.1 Implement intent classification worker
+  - [x] 6.1 Implement intent classification worker
     - Create text analysis for restoration intent detection
     - Build confidence scoring and human triage flagging
     - Add model routing logic (local vs cloud) based on intent and complexity
     - _Requirements: 2.1, 2.3_
 
-  - [ ] 6.2 Create local AI pipeline with compute backend selection
+  - [x] 6.2 Create local AI pipeline with compute backend selection
     - Implement PyTorch MPS acceleration for Apple Silicon
     - Add DirectML support for Windows GPU acceleration
     - Build ComfyUI workflow orchestration for model chaining
     - Create model license compliance validation system
     - _Requirements: 2.2, 2.8_
 
-  - [ ] 6.3 Implement cloud AI pipeline with Gemini integration
+  - [x] 6.3 Implement cloud AI pipeline with Gemini integration
     - Integrate Google Gen AI SDK with gemini-2.5-flash-image model
     - Add ethical prompting with bias mitigation safeguards
     - Implement usage metadata tracking for cost management
     - Build automatic retry with circuit breaker pattern
     - _Requirements: 2.4, 7.1_
 
-  - [ ] 6.4 Add content safety and NSFW detection
+  - [x] 6.4 Add content safety and NSFW detection
     - Implement NSFW content classification using TensorFlow.js models
     - Build minor-sensitive content detection pipeline
     - Create content flagging and human review workflows

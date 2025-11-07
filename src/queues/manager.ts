@@ -6,6 +6,7 @@ import { env } from '../config/index.js';
 import { logger } from '../lib/logger.js';
 import type { C2PAManifest } from '../metadata/index.js';
 import { RequestRecordModel } from '../models/index.js';
+import { processClassificationJob, type ClassificationResult } from '../workers/classification.js';
 
 export interface ClassificationJobData {
   requestId: string;
@@ -156,35 +157,64 @@ function calculatePriority(priority: 'high' | 'normal' | 'low' | undefined): num
 
 async function classificationProcessor(
   job: Job<ClassificationJobData>
-): Promise<{ status: string; queuedRestoration: boolean }> {
+): Promise<{ status: string; classification: ClassificationResult; queuedRestoration: boolean }> {
   logger.info({ jobId: job.id, requestId: job.data.requestId }, 'Processing classification job');
 
+  // Use the dedicated classification worker
+  const classification = await processClassificationJob(job);
+
+  // Fetch the updated request
   const request = await RequestRecordModel.findOne({ requestId: job.data.requestId });
   if (!request) {
     throw new Error(`Request ${job.data.requestId} not found`);
   }
 
-  request.status = 'processing';
-  request.classificationConfidence = request.classificationConfidence ?? 0.9;
-  await request.save();
-
-  await job.updateProgress(80);
-
-  const assetId = request.assets[0]?.assetId;
+  // Automatically enqueue restoration for classified requests
+  // Skip if flagged for human triage
   let queuedRestoration = false;
 
-  if (assetId) {
-    await enqueueRestorationJob({
-      requestId: request.requestId,
-      assetId,
-      aiModel: 'auto-restoration'
-    });
-    queuedRestoration = true;
+  if (!classification.requiresHumanReview && request.assets.length > 0) {
+    const assetId = request.assets[0]?.assetId;
+
+    if (assetId) {
+      // Determine AI model based on routing decision
+      const aiModel =
+        classification.routingDecision === 'cloud' ? 'gemini-2.5-flash-image' : 'local-pipeline';
+
+      await enqueueRestorationJob({
+        requestId: request.requestId,
+        assetId,
+        aiModel,
+        priority: classification.confidence > 0.8 ? 'high' : 'normal'
+      });
+
+      queuedRestoration = true;
+
+      logger.info(
+        {
+          requestId: request.requestId,
+          assetId,
+          aiModel,
+          routingDecision: classification.routingDecision
+        },
+        'Restoration job enqueued'
+      );
+    }
+  } else if (classification.requiresHumanReview) {
+    // Update status to awaiting review
+    request.status = 'pending_review';
+    await request.save();
+
+    logger.info(
+      {
+        requestId: request.requestId,
+        reason: 'low_confidence_or_triage'
+      },
+      'Request flagged for human review'
+    );
   }
 
-  await job.updateProgress(100);
-
-  return { status: 'classified', queuedRestoration };
+  return { status: 'classified', classification, queuedRestoration };
 }
 
 async function restorationProcessor(
