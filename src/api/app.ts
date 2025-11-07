@@ -1,5 +1,5 @@
 import cors from 'cors';
-import express, { type Express } from 'express';
+import express, { json, type Express, urlencoded } from 'express';
 import helmet from 'helmet';
 
 import { errorHandler } from './middleware/error-handler.js';
@@ -18,8 +18,8 @@ export function createApp(): Express {
   app.set('trust proxy', 1);
 
   // Request parsing middleware
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+  app.use(json({ limit: '10mb' }));
+  app.use(urlencoded({ extended: true, limit: '10mb' }));
 
   // CORS configuration
   app.use(
@@ -44,7 +44,7 @@ export function createApp(): Express {
   // API routes
   app.use('/api', routes);
 
-  // Health check endpoint
+  // Basic health check endpoint (legacy)
   app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });

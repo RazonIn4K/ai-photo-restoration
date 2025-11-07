@@ -1,6 +1,7 @@
+import { createApp } from './app.js';
 import { connectDatabase } from '../database/index.js';
 import { logger } from '../lib/logger.js';
-import { createApp } from './app.js';
+import { initializeQueues, registerQueueDashboard, shutdownQueues } from '../queues/index.js';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.HOST || '0.0.0.0';
@@ -18,6 +19,9 @@ async function startServer(): Promise<void> {
     // Create Express app
     const app = createApp();
 
+    await initializeQueues();
+    await registerQueueDashboard(app);
+
     // Start listening
     const server = app.listen(PORT, HOST, () => {
       logger.info({ port: PORT, host: HOST }, 'API server started');
@@ -30,6 +34,8 @@ async function startServer(): Promise<void> {
         logger.info('HTTP server closed');
         process.exit(0);
       });
+
+      await shutdownQueues();
 
       // Force shutdown after 10 seconds
       setTimeout(() => {
@@ -48,7 +54,7 @@ async function startServer(): Promise<void> {
 
 // Start server if this is the main module
 if (import.meta.url === `file://${process.argv[1]}`) {
-  startServer();
+  void startServer();
 }
 
 export { startServer };

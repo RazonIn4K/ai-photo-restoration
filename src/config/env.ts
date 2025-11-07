@@ -3,15 +3,7 @@ import { z } from 'zod';
 
 loadEnv();
 
-const logLevels = [
-  'fatal',
-  'error',
-  'warn',
-  'info',
-  'debug',
-  'trace',
-  'silent'
-] as const;
+const logLevels = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -19,14 +11,7 @@ const envSchema = z.object({
     .string()
     .default('4000')
     .transform(value => Number(value))
-    .pipe(
-      z
-        .number()
-        .int()
-        .min(1)
-        .max(65535)
-        .describe('PORT must be a valid port number')
-    ),
+    .pipe(z.number().int().min(1).max(65535).describe('PORT must be a valid port number')),
   LOG_LEVEL: z.enum(logLevels).default('info'),
   MONGO_URI: z
     .string()
@@ -51,18 +36,16 @@ const envSchema = z.object({
     .string()
     .default('5000')
     .transform(value => Number(value))
-    .pipe(z.number().int().min(1000).describe('MONGO_SERVER_SELECTION_TIMEOUT_MS must be >= 1000ms')),
+    .pipe(
+      z.number().int().min(1000).describe('MONGO_SERVER_SELECTION_TIMEOUT_MS must be >= 1000ms')
+    ),
   MONGO_HEARTBEAT_FREQUENCY_MS: z
     .string()
     .default('10000')
     .transform(value => Number(value))
     .pipe(z.number().int().min(1000).describe('MONGO_HEARTBEAT_FREQUENCY_MS must be >= 1000ms')),
-  MONGO_KEY_VAULT_NAMESPACE: z
-    .string()
-    .default('encryption.__keyVault'),
-  MONGO_CSFLE_KMS_PROVIDER: z
-    .enum(['local', 'aws'])
-    .default('local'),
+  MONGO_KEY_VAULT_NAMESPACE: z.string().default('encryption.__keyVault'),
+  MONGO_CSFLE_KMS_PROVIDER: z.enum(['local', 'aws']).default('local'),
   MONGO_DISABLE_CSFLE: z
     .string()
     .default('false')
@@ -84,14 +67,40 @@ const envSchema = z.object({
     .string()
     .default('9464')
     .transform(value => Number(value))
+    .pipe(z.number().int().min(1).max(65535).describe('METRICS_PORT must be a valid port number')),
+  QUEUE_PREFIX: z.string().default('frai'),
+  QUEUE_CLASSIFICATION_CONCURRENCY: z
+    .string()
+    .default('5')
+    .transform(value => Number(value))
     .pipe(
       z
         .number()
         .int()
         .min(1)
-        .max(65535)
-        .describe('METRICS_PORT must be a valid port number')
-    )
+        .max(50)
+        .describe('QUEUE_CLASSIFICATION_CONCURRENCY must be within 1-50')
+    ),
+  QUEUE_RESTORATION_CONCURRENCY: z
+    .string()
+    .default('3')
+    .transform(value => Number(value))
+    .pipe(
+      z.number().int().min(1).max(50).describe('QUEUE_RESTORATION_CONCURRENCY must be within 1-50')
+    ),
+  QUEUE_MAX_ATTEMPTS: z
+    .string()
+    .default('5')
+    .transform(value => Number(value))
+    .pipe(z.number().int().min(1).max(25).describe('QUEUE_MAX_ATTEMPTS must be within 1-25')),
+  QUEUE_BACKOFF_BASE_DELAY_MS: z
+    .string()
+    .default('30000')
+    .transform(value => Number(value))
+    .pipe(z.number().int().min(1000).describe('QUEUE_BACKOFF_BASE_DELAY_MS must be >= 1000ms')),
+  BULL_BOARD_USERNAME: z.string().default('admin'),
+  BULL_BOARD_PASSWORD: z.string().default('changeme'),
+  BULL_BOARD_BASE_PATH: z.string().default('/admin/queues')
 });
 
 const parseResult = envSchema.safeParse(process.env);

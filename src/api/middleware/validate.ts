@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import type { AnyZodObject } from 'zod';
+import { ZodError } from 'zod';
 
 /**
  * Validation middleware factory
@@ -17,7 +18,17 @@ export function validateRequest(schema: AnyZodObject) {
 
       next();
     } catch (error) {
-      // Pass validation errors to error handler
+      // Handle Zod validation errors directly
+      if (error instanceof ZodError) {
+        res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: error.errors
+        });
+        return;
+      }
+
+      // Pass other errors to error handler
       next(error);
     }
   };

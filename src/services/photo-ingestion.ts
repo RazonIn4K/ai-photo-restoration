@@ -5,10 +5,11 @@
 
 import { ulid } from 'ulid';
 
+import { createStorageIntegrationService } from './storage-integration.js';
 import { logger } from '../lib/logger.js';
 import type { PhotoAsset } from '../models/index.js';
 import { RequestRecordModel } from '../models/index.js';
-import { createStorageIntegrationService } from './storage-integration.js';
+import { enqueueClassificationJob } from '../queues/index.js';
 
 /**
  * Options for photo ingestion
@@ -96,6 +97,15 @@ export async function ingestPhoto(
     await requestRecord.save();
 
     logger.info({ requestId, assetId }, 'Request record created');
+
+    try {
+      await enqueueClassificationJob({
+        requestId,
+        assetIds: [assetId]
+      });
+    } catch (error) {
+      logger.warn({ error, requestId }, 'Failed to enqueue classification job');
+    }
 
     return {
       requestId,

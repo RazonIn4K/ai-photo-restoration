@@ -1,7 +1,12 @@
 import { Router } from 'express';
 
-import { ingestPhotoHandler, getRequestHandler, listRequestsHandler } from '../handlers/requests.js';
+import {
+  ingestPhotoHandler,
+  getRequestHandler,
+  listRequestsHandler
+} from '../handlers/requests.js';
 import { validateRequest } from '../middleware/validate.js';
+import { requireAuth } from '../middleware/webauthn.js';
 import { IngestPhotoSchema, GetRequestSchema, ListRequestsSchema } from '../schemas/requests.js';
 
 /**
@@ -12,18 +17,23 @@ export const requestsRouter = Router();
 
 /**
  * POST /api/requests/ingest
- * Ingest a new photo restoration request
+ * Ingest a new photo restoration request (protected)
  */
-requestsRouter.post('/ingest', validateRequest(IngestPhotoSchema), ingestPhotoHandler);
+requestsRouter.post('/ingest', requireAuth, validateRequest(IngestPhotoSchema), ingestPhotoHandler);
 
 /**
  * GET /api/requests/:requestId
- * Get a specific request by ID
+ * Get a specific request by ID (protected)
  */
-requestsRouter.get('/:requestId', validateRequest(GetRequestSchema), getRequestHandler);
+requestsRouter.get(
+  '/:requestId',
+  requireAuth,
+  validateRequest(GetRequestSchema),
+  getRequestHandler
+);
 
 /**
  * GET /api/requests
- * List requests with filtering and pagination
+ * List requests with filtering and pagination (protected)
  */
-requestsRouter.get('/', validateRequest(ListRequestsSchema), listRequestsHandler);
+requestsRouter.get('/', requireAuth, validateRequest(ListRequestsSchema), listRequestsHandler);

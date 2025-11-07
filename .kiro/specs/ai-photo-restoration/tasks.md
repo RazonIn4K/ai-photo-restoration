@@ -27,67 +27,67 @@
     - Add Config model for system settings and group configurations
     - _Requirements: 4.1, 8.4, 8.5_
 
-- [ ] 3. Build encrypted storage system with cryptographic controls
-  - [ ] 3.1 Implement envelope encryption with per-asset DEK
+- [x] 3. Build encrypted storage system with cryptographic controls
+  - [x] 3.1 Implement envelope encryption with per-asset DEK
     - Create key management system using OS keychain integration
     - Implement AES-256-GCM encryption with authenticated encryption
     - Build cryptographic erasure functionality with DEK zeroization
     - _Requirements: 8.1, 8.6_
 
-  - [ ] 3.2 Create content-addressed file storage
+  - [x] 3.2 Create content-addressed file storage
     - Implement SHA-256 based file organization with directory sharding
     - Build secure file operations with encryption/decryption
     - Add perceptual hashing using sharp-phash for image comparison
     - _Requirements: 1.3, 2.6, 4.2_
 
-  - [ ] 3.3 Implement EXIF and C2PA metadata handling
+  - [x] 3.3 Implement EXIF and C2PA metadata handling
     - Integrate exiftool-vendored for reliable EXIF metadata operations
     - Build C2PA manifest creation and validation using c2pa-node
     - Create metadata embedding and extraction utilities
     - _Requirements: 2.5, 4.3, 7.6_
 
-- [ ] 4. Create Express API server with enhanced security
-  - [ ] 4.1 Set up Express application with security middleware
+- [x] 4. Create Express API server with enhanced security
+  - [x] 4.1 Set up Express application with security middleware
     - Configure Helmet with COOP, COEP, CORP headers
     - Implement strict Content Security Policy with nonces
     - Add Sec-Fetch-\* header validation and SameSite/Origin checks
     - Set up express-rate-limit with Redis backing
     - _Requirements: 6.1, 6.2, 6.6_
 
-  - [ ] 4.2 Implement Zod schema validation for all endpoints
+  - [x] 4.2 Implement Zod schema validation for all endpoints
     - Create comprehensive input validation schemas
     - Build error handling middleware with structured responses
     - Add request sanitization and XSS protection
     - _Requirements: 6.1_
 
-  - [ ] 4.3 Build WebAuthn passkey authentication system
+  - [x] 4.3 Build WebAuthn passkey authentication system
     - Implement WebAuthn registration and authentication endpoints
     - Create passkey credential management with secure storage
     - Add MFA fallback with TOTP/SMS support
     - Build JWT token management with short-lived sessions and refresh tokens
     - _Requirements: 3.7_
 
-  - [ ] 4.4 Create core API endpoints for request management
+  - [x] 4.4 Create core API endpoints for request management
     - Build ingestion endpoint with multi-photo support
     - Implement review endpoints (approve, reject, reprocess)
     - Create posting proof submission endpoint
     - Add metrics endpoint for Prometheus integration
     - _Requirements: 1.1, 3.4, 5.5_
 
-- [ ] 5. Implement BullMQ queue system with reliability features
-  - [ ] 5.1 Set up Redis-backed job queues with persistence
+- [x] 5. Implement BullMQ queue system with reliability features
+  - [x] 5.1 Set up Redis-backed job queues with persistence
     - Configure BullMQ with exponential backoff and retry strategies
     - Implement job deduplication using requestId as jobId
     - Set up dead letter queue for failed jobs with manual recovery
     - _Requirements: 1.6_
 
-  - [ ] 5.2 Create classification and restoration job processors
+  - [x] 5.2 Create classification and restoration job processors
     - Build job interfaces for classification and restoration workflows
     - Implement job status tracking and progress reporting
     - Add queue metrics integration with Prometheus
     - _Requirements: 2.1, 2.2_
 
-  - [ ]\* 5.3 Add Bull Board dashboard for queue monitoring
+  - [x] 5.3 Add Bull Board dashboard for queue monitoring
     - Set up Bull Board UI for queue visualization and management
     - Configure authentication and access controls for queue dashboard
     - _Requirements: 6.4_
