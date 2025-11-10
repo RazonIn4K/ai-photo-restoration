@@ -87,11 +87,33 @@ jobs:
           echo "  Can Run: $CAN_RUN"
           echo "  Skip Reason: $SKIP_REASON"
 
+  # PR Canary Skip Notice - Inform when canary is skipped
+  pr-canary-skip-notice:
+    name: PR Canary Skip Notice
+    needs: check-eligibility
+    if: github.event_name == 'pull_request' && needs.check-eligibility.outputs.can-run != 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Log skip reason
+        run: |
+          echo "⏭️  PR canary skipped: ${{ needs.check-eligibility.outputs.skip-reason }}"
+          echo ""
+          echo "This is expected behavior and does not indicate a failure."
+          echo ""
+          echo "Details:"
+          echo "  - Is Fork: ${{ needs.check-eligibility.outputs.is-fork }}"
+          echo "  - Has Secrets: ${{ needs.check-eligibility.outputs.has-secrets }}"
+          echo "  - Skip Reason: ${{ needs.check-eligibility.outputs.skip-reason }}"
+          echo ""
+          echo "Forked PRs cannot access repository secrets for security reasons."
+          echo "Canary tests will run after merge to a trusted branch."
+
   # PR Canary - Fast smoke tests on trusted PRs only
   pr-canary:
     name: PR Smoke Canary
     needs: check-eligibility
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && needs.check-eligibility.outputs.can-run == 'true'
     runs-on: ubuntu-latest
 
     services:
@@ -119,30 +141,19 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Check if canary should run
-        if: needs.check-eligibility.outputs.can-run != 'true'
-        run: |
-          echo "⏭️  Skipping PR canary: ${{ needs.check-eligibility.outputs.skip-reason }}"
-          echo "This is expected for forked PRs and does not indicate a failure."
-          exit 0
-
       - name: Checkout code
-        if: needs.check-eligibility.outputs.can-run == 'true'
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        if: needs.check-eligibility.outputs.can-run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
-        if: needs.check-eligibility.outputs.can-run == 'true'
         run: npm ci
 
       - name: Run smoke canary
-        if: needs.check-eligibility.outputs.can-run == 'true'
         run: npm run canary:smoke
         env:
           NODE_ENV: test
@@ -217,7 +228,7 @@ jobs:
   scheduled-canary:
     name: Scheduled Prod Canary
     needs: check-eligibility
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.check-eligibility.outputs.can-run == 'true'
     runs-on: ubuntu-latest
     continue-on-error: true  # Don't fail workflow on canary errors
 
@@ -251,29 +262,19 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Check if canary should run
-        if: needs.check-eligibility.outputs.can-run != 'true'
-        run: |
-          echo "⏭️  Skipping scheduled canary: ${{ needs.check-eligibility.outputs.skip-reason }}"
-          exit 0
-
       - name: Checkout code
-        if: needs.check-eligibility.outputs.can-run == 'true'
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        if: needs.check-eligibility.outputs.can-run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
-        if: needs.check-eligibility.outputs.can-run == 'true'
         run: npm ci
 
       - name: Run ${{ matrix.suite }} canary
-        if: needs.check-eligibility.outputs.can-run == 'true'
         run: npm run canary:${{ matrix.suite }}
         continue-on-error: true  # Continue even if this suite fails
         env:
@@ -284,7 +285,7 @@ jobs:
           CI: true
 
       - name: Upload canary artifacts
-        if: always() && needs.check-eligibility.outputs.can-run == 'true'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: canary-${{ matrix.suite }}-results-${{ github.run_number }}
@@ -295,7 +296,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Report canary status
-        if: always() && needs.check-eligibility.outputs.can-run == 'true'
+        if: always()
         run: |
           echo "📊 Canary Status for ${{ matrix.suite }} suite"
           echo "Run ID: ${{ github.run_id }}"
