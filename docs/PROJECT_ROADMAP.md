@@ -344,6 +344,10 @@ Before marking Task 3 as complete:
 
 1. **8.1**: React-based review interface
 2. **8.2**: Accessibility features and alt-text generation
+   - **WCAG 2.1 AA compliance** with keyboard navigation, screen reader support, and high-contrast mode
+   - AI-powered alt-text suggestions (Google Gemini 2.5 Flash or local BLIP-2)
+   - Automated accessibility testing with axe-core
+   - See [Dashboard Accessibility Guide](./dashboard/accessibility.md) for details
 3. **8.3**: NSFW content handling
 4. **8.4**: Posting workflow with proof capture
 
