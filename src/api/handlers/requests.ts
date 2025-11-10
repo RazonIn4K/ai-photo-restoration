@@ -1,5 +1,7 @@
 import type { Request, Response } from 'express';
 
+import { loadMockRequests } from './mock-data.js';
+import { env } from '../../config/env.js';
 import { logger } from '../../lib/logger.js';
 import { RequestRecordModel } from '../../models/index.js';
 import { ingestPhoto } from '../../services/photo-ingestion.js';
@@ -14,6 +16,14 @@ import type {
  * Ingests a new photo restoration request
  */
 export async function ingestPhotoHandler(req: Request, res: Response): Promise<void> {
+  if (env.useMockDashboard) {
+    res.status(501).json({
+      success: false,
+      error: 'Photo ingestion is disabled while USE_MOCK_DASHBOARD=1'
+    });
+    return;
+  }
+
   try {
     const data = req.body as IngestPhotoRequest;
 
@@ -58,6 +68,18 @@ export async function getRequestHandler(req: Request, res: Response): Promise<vo
   try {
     const { requestId } = req.params as GetRequestParams;
 
+    if (env.useMockDashboard) {
+      const mockRequests = await loadMockRequests();
+      const mock = mockRequests.find(r => r.requestId === requestId);
+      if (!mock) {
+        res.status(404).json({ success: false, error: 'Request not found' });
+        return;
+      }
+
+      res.json({ success: true, request: mock });
+      return;
+    }
+
     const request = await RequestRecordModel.findOne({ requestId }).lean();
 
     if (!request) {
@@ -89,6 +111,12 @@ export async function getRequestHandler(req: Request, res: Response): Promise<vo
  */
 export async function listRequestsHandler(req: Request, res: Response): Promise<void> {
   try {
+    if (env.useMockDashboard) {
+      const requests = await loadMockRequests();
+      res.json({ success: true, requests });
+      return;
+    }
+
     const { status, facebookGroupId, limit, offset, sortBy, sortOrder } =
       req.query as unknown as ListRequestsQuery;
 
