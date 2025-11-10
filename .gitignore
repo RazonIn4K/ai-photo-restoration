@@ -75,6 +75,7 @@ dist
 # Temporary folders
 tmp/
 temp/
+artifacts/
 
 # Editor directories and files
 .vscode/

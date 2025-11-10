@@ -1,0 +1,40 @@
+name: UI Canary
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/30 * * * *'
+  pull_request:
+    branches:
+      - main
+      - 'feature/**'
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+      - name: Run smoke canaries
+        env:
+          CANARY_BASE_URL: ${{ secrets.CANARY_BASE_URL }}
+          CANARY_USER_EMAIL: ${{ secrets.CANARY_USER_EMAIL }}
+          CANARY_USER_PASSWORD: ${{ secrets.CANARY_USER_PASSWORD }}
+        run: npm run canary:smoke
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canary-artifacts
+          path: |
+            artifacts/
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore

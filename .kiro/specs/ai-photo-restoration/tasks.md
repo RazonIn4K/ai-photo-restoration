@@ -120,7 +120,7 @@
     - _Requirements: 2.7_
 
 - [ ] 7. Create assisted ingestion service with dual-path architecture
-  - [ ] 7.1 Build Playwright-based Facebook group monitoring
+  - [x] 7.1 Build Playwright-based Facebook group monitoring
     - Implement persistent browser context with session management
     - Create configurable selectors with versioning system
     - Build multi-photo post detection and selective ingestion
