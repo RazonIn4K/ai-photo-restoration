@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { imagesRouter } from './images.js';
 import { requestsRouter } from './requests.js';
 
 /**
@@ -9,6 +10,7 @@ export const routes = Router();
 
 // Mount sub-routers
 routes.use('/requests', requestsRouter);
+routes.use('/images', imagesRouter);
 
 // API info endpoint
 routes.get('/', (req, res) => {

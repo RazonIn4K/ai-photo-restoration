@@ -64,6 +64,7 @@ A semi-automated photo restoration service that processes Facebook photo restora
 - `npm run lint` - Run ESLint
 - `npm run format` - Format code with Prettier
 - `npm test` - Run tests (when implemented)
+- `npm run seed:mock` - Seed mock dashboard data (see docs/DEV_MOCK_DATA.md)
 
 ### Dashboard Development with Mock Data
 

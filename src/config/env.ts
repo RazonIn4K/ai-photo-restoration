@@ -67,7 +67,11 @@ const envSchema = z.object({
     .string()
     .default('9464')
     .transform(value => Number(value))
-    .pipe(z.number().int().min(1).max(65535).describe('METRICS_PORT must be a valid port number'))
+    .pipe(z.number().int().min(1).max(65535).describe('METRICS_PORT must be a valid port number')),
+  USE_MOCK_DASHBOARD: z
+    .string()
+    .default('false')
+    .transform(value => value === 'true')
 });
 
 const parseResult = envSchema.safeParse(process.env);
@@ -113,7 +117,8 @@ export const env = {
   ...data,
   isDevelopment: data.NODE_ENV === 'development',
   isProduction: data.NODE_ENV === 'production',
-  isTest: data.NODE_ENV === 'test'
+  isTest: data.NODE_ENV === 'test',
+  useMockDashboard: data.USE_MOCK_DASHBOARD
 };
 
 export type AppEnvironment = typeof env;
