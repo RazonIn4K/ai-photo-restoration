@@ -25,7 +25,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "canary:smoke": "tsx scripts/run-canary.ts smoke",
+    "canary:meta": "tsx scripts/run-canary.ts meta",
+    "canary:visual": "tsx scripts/run-canary.ts visual"
   },
   "keywords": [
     "ai",

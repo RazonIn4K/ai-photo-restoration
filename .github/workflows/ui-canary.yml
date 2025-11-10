@@ -1,0 +1,306 @@
+name: UI Canary Tests
+
+on:
+  # PR canaries - fast smoke tests on trusted PRs
+  pull_request:
+    branches: [main, develop]
+
+  # Post-merge canaries - smoke + meta after merge to main
+  push:
+    branches: [main]
+
+  # Scheduled prod canaries - full suite every 15 minutes
+  schedule:
+    - cron: '*/15 * * * *'
+
+  # Manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: 'Test suite to run'
+        required: true
+        default: 'smoke'
+        type: choice
+        options:
+          - smoke
+          - meta
+          - visual
+          - all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  # Eligibility check - determines if canaries can run
+  check-eligibility:
+    runs-on: ubuntu-latest
+    outputs:
+      is-fork: ${{ steps.check.outputs.is-fork }}
+      has-secrets: ${{ steps.check.outputs.has-secrets }}
+      can-run: ${{ steps.check.outputs.can-run }}
+      skip-reason: ${{ steps.check.outputs.skip-reason }}
+
+    steps:
+      - name: Check eligibility
+        id: check
+        run: |
+          echo "Checking canary eligibility..."
+
+          # Check if PR is from a fork
+          IS_FORK="false"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+              IS_FORK="true"
+              echo "⚠️  PR is from a fork - secrets not available"
+            fi
+          fi
+
+          # Check if required secrets are available (placeholder check)
+          # In production, you'd check actual secret availability
+          HAS_SECRETS="true"
+          if [ "$IS_FORK" = "true" ]; then
+            HAS_SECRETS="false"
+          fi
+
+          # Determine if canaries can run
+          CAN_RUN="true"
+          SKIP_REASON=""
+
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "$IS_FORK" = "true" ]; then
+            CAN_RUN="false"
+            SKIP_REASON="Forked PR - secrets not available"
+          elif [ "${{ github.event_name }}" = "schedule" ] && [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            CAN_RUN="false"
+            SKIP_REASON="Scheduled canaries only run on main branch"
+          fi
+
+          echo "is-fork=$IS_FORK" >> $GITHUB_OUTPUT
+          echo "has-secrets=$HAS_SECRETS" >> $GITHUB_OUTPUT
+          echo "can-run=$CAN_RUN" >> $GITHUB_OUTPUT
+          echo "skip-reason=$SKIP_REASON" >> $GITHUB_OUTPUT
+
+          echo "📊 Eligibility Results:"
+          echo "  Event: ${{ github.event_name }}"
+          echo "  Is Fork: $IS_FORK"
+          echo "  Has Secrets: $HAS_SECRETS"
+          echo "  Can Run: $CAN_RUN"
+          echo "  Skip Reason: $SKIP_REASON"
+
+  # PR Canary - Fast smoke tests on trusted PRs only
+  pr-canary:
+    name: PR Smoke Canary
+    needs: check-eligibility
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:7.0
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: changeme
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Check if canary should run
+        if: needs.check-eligibility.outputs.can-run != 'true'
+        run: |
+          echo "⏭️  Skipping PR canary: ${{ needs.check-eligibility.outputs.skip-reason }}"
+          echo "This is expected for forked PRs and does not indicate a failure."
+          exit 0
+
+      - name: Checkout code
+        if: needs.check-eligibility.outputs.can-run == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        if: needs.check-eligibility.outputs.can-run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: needs.check-eligibility.outputs.can-run == 'true'
+        run: npm ci
+
+      - name: Run smoke canary
+        if: needs.check-eligibility.outputs.can-run == 'true'
+        run: npm run canary:smoke
+        env:
+          NODE_ENV: test
+          MONGO_URI: mongodb://admin:changeme@localhost:27017/face_restore_test?authSource=admin
+          REDIS_URL: redis://localhost:6379
+          MONGO_DISABLE_CSFLE: true
+          CI: true
+
+  # Post-Merge Canary - Smoke + Meta after pushes to main
+  post-merge-canary:
+    name: Post-Merge Canary (Smoke + Meta)
+    needs: check-eligibility
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:7.0
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: changeme
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run smoke canary
+        run: npm run canary:smoke
+        env:
+          NODE_ENV: test
+          MONGO_URI: mongodb://admin:changeme@localhost:27017/face_restore_test?authSource=admin
+          REDIS_URL: redis://localhost:6379
+          MONGO_DISABLE_CSFLE: true
+          CI: true
+
+      - name: Run meta canary
+        run: npm run canary:meta
+        env:
+          NODE_ENV: test
+          MONGO_URI: mongodb://admin:changeme@localhost:27017/face_restore_test?authSource=admin
+          REDIS_URL: redis://localhost:6379
+          MONGO_DISABLE_CSFLE: true
+          CI: true
+
+  # Scheduled Prod Canary - Full suite every 15 minutes
+  scheduled-canary:
+    name: Scheduled Prod Canary
+    needs: check-eligibility
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Don't fail workflow on canary errors
+
+    strategy:
+      matrix:
+        suite: [smoke, meta, visual]
+      fail-fast: false  # Run all suites even if one fails
+
+    services:
+      mongodb:
+        image: mongo:7.0
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: changeme
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Check if canary should run
+        if: needs.check-eligibility.outputs.can-run != 'true'
+        run: |
+          echo "⏭️  Skipping scheduled canary: ${{ needs.check-eligibility.outputs.skip-reason }}"
+          exit 0
+
+      - name: Checkout code
+        if: needs.check-eligibility.outputs.can-run == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        if: needs.check-eligibility.outputs.can-run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: needs.check-eligibility.outputs.can-run == 'true'
+        run: npm ci
+
+      - name: Run ${{ matrix.suite }} canary
+        if: needs.check-eligibility.outputs.can-run == 'true'
+        run: npm run canary:${{ matrix.suite }}
+        continue-on-error: true  # Continue even if this suite fails
+        env:
+          NODE_ENV: test
+          MONGO_URI: mongodb://admin:changeme@localhost:27017/face_restore_test?authSource=admin
+          REDIS_URL: redis://localhost:6379
+          MONGO_DISABLE_CSFLE: true
+          CI: true
+
+      - name: Upload canary artifacts
+        if: always() && needs.check-eligibility.outputs.can-run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: canary-${{ matrix.suite }}-results-${{ github.run_number }}
+          path: |
+            canary-artifacts/
+            canary-results.json
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Report canary status
+        if: always() && needs.check-eligibility.outputs.can-run == 'true'
+        run: |
+          echo "📊 Canary Status for ${{ matrix.suite }} suite"
+          echo "Run ID: ${{ github.run_id }}"
+          echo "Run Number: ${{ github.run_number }}"
+          if [ -f canary-artifacts/${{ matrix.suite }}-metadata.json ]; then
+            echo "Metadata:"
+            cat canary-artifacts/${{ matrix.suite }}-metadata.json
+          fi
