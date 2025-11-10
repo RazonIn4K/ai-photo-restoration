@@ -87,3 +87,47 @@ export interface GroupConfig {
   extractionMethod: 'playwright' | 'zyte' | 'hybrid';
   canarySchedule: string; // cron expression
 }
+
+// Zyte API types
+export interface ZyteExtractionRequest {
+  url: string;
+  extractionOptions?: {
+    screenshot?: boolean;
+    screenshotOptions?: {
+      fullPage?: boolean;
+    };
+    html?: boolean;
+    text?: boolean;
+  };
+  customHeaders?: Record<string, string>;
+  httpResponseBody?: boolean;
+}
+
+export interface ZyteExtractionResponse {
+  url: string;
+  statusCode: number;
+  html?: string;
+  text?: string;
+  screenshot?: string; // base64
+  httpResponseBody?: string;
+  metadata?: {
+    requestId?: string;
+    processingTimeMs?: number;
+  };
+}
+
+export interface ZyteError {
+  type: 'rate_limit' | 'timeout' | 'auth' | 'network' | 'extraction' | 'unknown';
+  message: string;
+  statusCode?: number;
+  retryable: boolean;
+  originalError?: unknown;
+}
+
+export interface ZyteClientConfig {
+  apiKey?: string;
+  apiUrl: string;
+  rateLimitPerMinute: number;
+  retryMaxAttempts: number;
+  timeoutMs: number;
+}

@@ -1,6 +1,6 @@
+import { createApp } from './app.js';
 import { connectDatabase } from '../database/index.js';
 import { logger } from '../lib/logger.js';
-import { createApp } from './app.js';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.HOST || '0.0.0.0';
