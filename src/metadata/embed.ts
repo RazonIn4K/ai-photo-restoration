@@ -63,7 +63,7 @@ export async function embedCompleteMetadata(
     approvalTimestamp: metadata.approvalTimestamp,
     restorationTimestamp: metadata.restorationTimestamp,
     originalSHA256: metadata.originalSHA256,
-    restoredSHA256: metadata.restoredSHA256,
+    restoredSHA256: metadata.restoredSHA256
   });
 
   const c2paManifestJSON = serializeManifest(c2paManifest);
@@ -78,7 +78,7 @@ export async function embedCompleteMetadata(
     approvedBy: metadata.approvedBy,
     originalSHA256: metadata.originalSHA256,
     originalPerceptualHash: metadata.originalPerceptualHash,
-    c2paManifest: c2paManifestJSON,
+    c2paManifest: c2paManifestJSON
   };
 
   // Embed EXIF metadata (including C2PA manifest as JSON)
@@ -90,7 +90,7 @@ export async function embedCompleteMetadata(
     imageBuffer: imageWithMetadata,
     exifMetadata,
     c2paManifest,
-    c2paManifestJSON,
+    c2paManifestJSON
   };
 }
 
@@ -118,7 +118,7 @@ export async function extractCompleteMetadata(imageBuffer: Buffer): Promise<{
 
   return {
     exif: exifData,
-    c2pa: c2paManifest,
+    c2pa: c2paManifest
   };
 }
 
@@ -158,7 +158,7 @@ export async function verifyMetadataIntegrity(
 
   return {
     isValid: errors.length === 0,
-    errors,
+    errors
   };
 }
 

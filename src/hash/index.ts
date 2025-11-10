@@ -12,5 +12,5 @@ export {
   groupBySimilarity,
   DEFAULT_SIMILARITY_THRESHOLD,
   type PerceptualHashResult,
-  type SimilarityResult,
+  type SimilarityResult
 } from './perceptual.js';

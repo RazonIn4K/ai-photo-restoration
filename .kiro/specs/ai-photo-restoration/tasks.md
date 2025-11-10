@@ -46,15 +46,15 @@
     - Create metadata embedding and extraction utilities
     - _Requirements: 2.5, 4.3, 7.6_
 
-- [ ] 4. Create Express API server with enhanced security
-  - [ ] 4.1 Set up Express application with security middleware
+- [x] 4. Create Express API server with enhanced security
+  - [x] 4.1 Set up Express application with security middleware
     - Configure Helmet with COOP, COEP, CORP headers
     - Implement strict Content Security Policy with nonces
     - Add Sec-Fetch-\* header validation and SameSite/Origin checks
     - Set up express-rate-limit with Redis backing
     - _Requirements: 6.1, 6.2, 6.6_
 
-  - [ ] 4.2 Implement Zod schema validation for all endpoints
+  - [x] 4.2 Implement Zod schema validation for all endpoints
     - Create comprehensive input validation schemas
     - Build error handling middleware with structured responses
     - Add request sanitization and XSS protection
@@ -67,84 +67,88 @@
     - Build JWT token management with short-lived sessions and refresh tokens
     - _Requirements: 3.7_
 
-  - [ ] 4.4 Create core API endpoints for request management
+  - [x] 4.4 Create core API endpoints for request management
     - Build ingestion endpoint with multi-photo support
-    - Implement review endpoints (approve, reject, reprocess)
+    - Implement review endpoints (approve, reject, requeue)
     - Create posting proof submission endpoint
     - Add metrics endpoint for Prometheus integration
+    - Add image serving endpoint with path traversal protection
     - _Requirements: 1.1, 3.4, 5.5_
 
-- [ ] 5. Implement BullMQ queue system with reliability features
-  - [ ] 5.1 Set up Redis-backed job queues with persistence
+- [x] 5. Implement BullMQ queue system with reliability features
+  - [x] 5.1 Set up Redis-backed job queues with persistence
     - Configure BullMQ with exponential backoff and retry strategies
     - Implement job deduplication using requestId as jobId
     - Set up dead letter queue for failed jobs with manual recovery
     - _Requirements: 1.6_
 
-  - [ ] 5.2 Create classification and restoration job processors
+  - [x] 5.2 Create classification and restoration job processors
     - Build job interfaces for classification and restoration workflows
     - Implement job status tracking and progress reporting
     - Add queue metrics integration with Prometheus
     - _Requirements: 2.1, 2.2_
 
-  - [ ]\* 5.3 Add Bull Board dashboard for queue monitoring
+  - [x]\* 5.3 Add Bull Board dashboard for queue monitoring
     - Set up Bull Board UI for queue visualization and management
     - Configure authentication and access controls for queue dashboard
     - _Requirements: 6.4_
 
-- [ ] 6. Build AI processing pipeline with multi-platform support
-  - [ ] 6.1 Implement intent classification worker
+- [x] 6. Build AI processing pipeline with multi-platform support
+  - [x] 6.1 Implement intent classification worker
     - Create text analysis for restoration intent detection
     - Build confidence scoring and human triage flagging
     - Add model routing logic (local vs cloud) based on intent and complexity
     - _Requirements: 2.1, 2.3_
 
-  - [ ] 6.2 Create local AI pipeline with compute backend selection
+  - [x] 6.2 Create local AI pipeline with compute backend selection
     - Implement PyTorch MPS acceleration for Apple Silicon
     - Add DirectML support for Windows GPU acceleration
     - Build ComfyUI workflow orchestration for model chaining
     - Create model license compliance validation system
     - _Requirements: 2.2, 2.8_
 
-  - [ ] 6.3 Implement cloud AI pipeline with Gemini integration
+  - [x] 6.3 Implement cloud AI pipeline with Gemini integration
     - Integrate Google Gen AI SDK with gemini-2.5-flash-image model
     - Add ethical prompting with bias mitigation safeguards
     - Implement usage metadata tracking for cost management
     - Build automatic retry with circuit breaker pattern
     - _Requirements: 2.4, 7.1_
 
-  - [ ] 6.4 Add content safety and NSFW detection
+  - [x] 6.4 Add content safety and NSFW detection
     - Implement NSFW content classification using TensorFlow.js models
     - Build minor-sensitive content detection pipeline
     - Create content flagging and human review workflows
     - _Requirements: 2.7_
 
-- [ ] 7. Create assisted ingestion service with dual-path architecture
-  - [ ] 7.1 Build Playwright-based Facebook group monitoring
+- [x] 7. Create assisted ingestion service with dual-path architecture
+  - [x] 7.1 Build Playwright-based Facebook group monitoring
     - Implement persistent browser context with session management
     - Create configurable selectors with versioning system
     - Build multi-photo post detection and selective ingestion
     - Add duplicate detection using post URL fingerprinting
     - _Requirements: 1.1, 1.2, 1.5, 1.7_
 
-  - [ ] 7.2 Implement automated canary testing for UI resilience
+  - [x] 7.2 Implement automated canary testing for UI resilience
     - Create smoke tests for Facebook UI selector validation
     - Build automated UI change detection with alerting
     - Implement fallback mechanisms when selectors fail
     - _Requirements: 1.9_
 
-  - [ ]\* 7.3 Add optional third-party extraction integration
+  - [x]\* 7.3 Add optional third-party extraction integration
     - Integrate Zyte API with contractual compliance safeguards
     - Implement fallback to local Playwright when external API fails
     - Add rate limiting and error handling for external services
     - _Requirements: 1.8_
 
 - [ ] 8. Build review dashboard with accessibility and security features
-  - [ ] 8.1 Create React-based review interface
+  - [x] 8.1 Create React-based review interface
     - Build side-by-side image comparison with interactive slider
     - Implement perceptual hash distance visualization with diff heatmaps
     - Create Facebook post context display with external link handling
     - Add batch approval capabilities with safety confirmations
+    - Implement approve, reject, and requeue API endpoints
+    - Add mock data mode for development and testing
+    - Create development workflow with concurrent server/client
     - _Requirements: 3.2, 3.3, 3.4_
 
   - [ ] 8.2 Implement accessibility features and alt-text generation

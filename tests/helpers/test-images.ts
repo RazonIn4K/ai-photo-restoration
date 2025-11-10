@@ -79,10 +79,7 @@ export async function createSolidImage(
 /**
  * Create a gradient test image
  */
-export async function createGradientImage(
-  width = 640,
-  height = 480
-): Promise<Buffer> {
+export async function createGradientImage(width = 640, height = 480): Promise<Buffer> {
   return createTestImage({ width, height, pattern: 'gradient' });
 }
 

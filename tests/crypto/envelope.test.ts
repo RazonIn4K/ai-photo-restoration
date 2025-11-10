@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
+
 import {
   generateDEK,
   encrypt,
@@ -12,9 +13,7 @@ import {
   serializeEncryptedData,
   deserializeEncryptedData,
   serializeEncryptedDEK,
-  deserializeEncryptedDEK,
-  type EncryptedData,
-  type EncryptedDEK,
+  deserializeEncryptedDEK
 } from '../../src/crypto/envelope.js';
 
 describe('Envelope Encryption', () => {
@@ -65,7 +64,7 @@ describe('Envelope Encryption', () => {
       const encryptedData = encrypt(originalData, dek);
 
       // Tamper with ciphertext
-      encryptedData.ciphertext[0] ^= 0xFF;
+      encryptedData.ciphertext[0] ^= 0xff;
 
       expect(() => decrypt(encryptedData, dek)).toThrow();
     });
@@ -77,7 +76,7 @@ describe('Envelope Encryption', () => {
       const encryptedData = encrypt(originalData, dek);
 
       // Tamper with auth tag
-      encryptedData.authTag[0] ^= 0xFF;
+      encryptedData.authTag[0] ^= 0xff;
 
       expect(() => decrypt(encryptedData, dek)).toThrow();
     });
@@ -159,7 +158,9 @@ describe('Envelope Encryption', () => {
       // Different IVs and DEKs should produce different ciphertext
       expect(result1.encryptedData.iv.equals(result2.encryptedData.iv)).toBe(false);
       expect(result1.encryptedData.ciphertext.equals(result2.encryptedData.ciphertext)).toBe(false);
-      expect(result1.encryptedDEK.encryptedKey.equals(result2.encryptedDEK.encryptedKey)).toBe(false);
+      expect(result1.encryptedDEK.encryptedKey.equals(result2.encryptedDEK.encryptedKey)).toBe(
+        false
+      );
 
       // But both should decrypt to the same original data
       const decrypted1 = envelopeDecrypt(result1.encryptedData, result1.encryptedDEK);
@@ -195,8 +196,8 @@ describe('Envelope Encryption', () => {
 
     it('should handle null/undefined gracefully', () => {
       // TypeScript would catch this, but test runtime behavior
-      expect(() => zeroizeKey(null as any)).not.toThrow();
-      expect(() => zeroizeKey(undefined as any)).not.toThrow();
+      expect(() => zeroizeKey(null as unknown as Buffer)).not.toThrow();
+      expect(() => zeroizeKey(undefined as unknown as Buffer)).not.toThrow();
     });
   });
 

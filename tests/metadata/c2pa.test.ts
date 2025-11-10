@@ -40,7 +40,7 @@ describe('C2PA manifest helpers', () => {
         originalSHA256: 'abc123'.repeat(10)
       });
 
-      const aiAction = manifest.actions?.find((a) => a.action === 'c2pa.ai.inference');
+      const aiAction = manifest.actions?.find(a => a.action === 'c2pa.ai.inference');
       expect(aiAction).toBeDefined();
       expect(aiAction?.softwareAgent).toBe('TestModel-v1');
       expect(aiAction?.digitalSourceType).toBe('trainedAlgorithmicMedia');
@@ -57,10 +57,10 @@ describe('C2PA manifest helpers', () => {
         originalSHA256: 'test123'.repeat(8)
       });
 
-      const approvalAction = manifest.actions?.find((a) => a.action === 'c2pa.published');
+      const approvalAction = manifest.actions?.find(a => a.action === 'c2pa.published');
       expect(approvalAction).toBeDefined();
 
-      const approver = approvalAction?.participants?.find((p) => p.type === 'person');
+      const approver = approvalAction?.participants?.find(p => p.type === 'person');
       expect(approver?.name).toBe('approver@test.com');
     });
 
@@ -97,10 +97,10 @@ describe('C2PA manifest helpers', () => {
     });
 
     it('rejects manifest without required context', () => {
-      const invalidManifest = {
+      const invalidManifest: Record<string, unknown> = {
         type: 'ImageObject',
         claimGenerator: 'Test'
-      } as any;
+      };
 
       const validation = validateManifest(invalidManifest);
       expect(validation.valid).toBe(false);
@@ -108,10 +108,10 @@ describe('C2PA manifest helpers', () => {
     });
 
     it('rejects manifest without claim generator', () => {
-      const invalidManifest = {
+      const invalidManifest: Record<string, unknown> = {
         '@context': 'https://c2pa.org/specifications/1.0/context',
         type: 'ImageObject'
-      } as any;
+      };
 
       const validation = validateManifest(invalidManifest);
       expect(validation.valid).toBe(false);
@@ -156,7 +156,7 @@ describe('C2PA manifest helpers', () => {
       const serialized = serializeManifest(manifest);
       const parsed = parseManifest(serialized);
 
-      const aiAction = parsed.actions?.find((a) => a.action === 'c2pa.ai.inference');
+      const aiAction = parsed.actions?.find(a => a.action === 'c2pa.ai.inference');
       expect(aiAction?.when).toBeDefined();
       expect(new Date(aiAction!.when as Date).toISOString()).toBe(testDate.toISOString());
     });
@@ -248,10 +248,10 @@ describe('C2PA manifest helpers', () => {
       const actors = extractActors(manifest);
       expect(actors.length).toBeGreaterThan(0);
 
-      const humanActor = actors.find((a) => a.type === 'person');
+      const humanActor = actors.find(a => a.type === 'person');
       expect(humanActor?.name).toBe('operator@example.com');
 
-      const softwareActor = actors.find((a) => a.type === 'software');
+      const softwareActor = actors.find(a => a.type === 'software');
       expect(softwareActor?.name).toBe('ActorModel');
     });
 

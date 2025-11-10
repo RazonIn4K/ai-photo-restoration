@@ -25,7 +25,7 @@ import {
   serializeEncryptedData,
   deserializeEncryptedData,
   serializeEncryptedDEK,
-  deserializeEncryptedDEK,
+  deserializeEncryptedDEK
 } from '../crypto/envelope.js';
 
 /**
@@ -101,7 +101,7 @@ export class ContentAddressedStorage {
   constructor(config?: Partial<StorageConfig>) {
     this.config = {
       basePath: config?.basePath ?? DEFAULT_STORAGE_PATH,
-      autoCreateDirs: config?.autoCreateDirs ?? true,
+      autoCreateDirs: config?.autoCreateDirs ?? true
     };
   }
 
@@ -200,7 +200,7 @@ export class ContentAddressedStorage {
         encryptedPath,
         dekPath,
         metadata: existingMetadata,
-        isNew: false,
+        isNew: false
       };
     }
 
@@ -223,7 +223,7 @@ export class ContentAddressedStorage {
     const fullMetadata: FileMetadata = {
       sha256,
       storedAt: new Date(),
-      ...metadata,
+      ...metadata
     };
     await writeFile(metadataPath, JSON.stringify(fullMetadata, null, 2));
 
@@ -232,7 +232,7 @@ export class ContentAddressedStorage {
       encryptedPath,
       dekPath,
       metadata: fullMetadata,
-      isNew: true,
+      isNew: true
     };
   }
 
@@ -243,7 +243,10 @@ export class ContentAddressedStorage {
    * @param sha256 - Content hash
    * @returns Decrypted file data and metadata
    */
-  public async retrieve(category: Exclude<StorageCategory, 'keys'>, sha256: string): Promise<RetrieveResult> {
+  public async retrieve(
+    category: Exclude<StorageCategory, 'keys'>,
+    sha256: string
+  ): Promise<RetrieveResult> {
     const encryptedPath = this.getFilePath(category, sha256);
     const dekPath = this.getDEKPath(sha256);
 
@@ -278,14 +281,17 @@ export class ContentAddressedStorage {
 
     return {
       data,
-      metadata,
+      metadata
     };
   }
 
   /**
    * Load metadata for a file
    */
-  private async loadMetadata(category: Exclude<StorageCategory, 'keys'>, sha256: string): Promise<FileMetadata> {
+  private async loadMetadata(
+    category: Exclude<StorageCategory, 'keys'>,
+    sha256: string
+  ): Promise<FileMetadata> {
     const metadataPath = this.getMetadataPath(category, sha256);
 
     if (!(await this.fileExists(metadataPath))) {
@@ -337,7 +343,10 @@ export class ContentAddressedStorage {
   /**
    * Check if a file exists in storage
    */
-  public async exists(category: Exclude<StorageCategory, 'keys'>, sha256: string): Promise<boolean> {
+  public async exists(
+    category: Exclude<StorageCategory, 'keys'>,
+    sha256: string
+  ): Promise<boolean> {
     const encryptedPath = this.getFilePath(category, sha256);
     return this.fileExists(encryptedPath);
   }
@@ -351,7 +360,7 @@ export class ContentAddressedStorage {
   }> {
     return {
       basePath: this.config.basePath,
-      categories: ['originals', 'restored', 'keys'],
+      categories: ['originals', 'restored', 'keys']
     };
   }
 }

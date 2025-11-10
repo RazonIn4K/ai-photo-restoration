@@ -35,7 +35,17 @@ export type GetRequestParams = z.infer<typeof GetRequestSchema>['params'];
  */
 export const ListRequestsSchema = z.object({
   query: z.object({
-    status: z.enum(['queued', 'processing', 'ready_for_review', 'approved', 'posted', 'completed', 'rejected']).optional(),
+    status: z
+      .enum([
+        'queued',
+        'processing',
+        'ready_for_review',
+        'approved',
+        'posted',
+        'completed',
+        'rejected'
+      ])
+      .optional(),
     facebookGroupId: z.string().optional(),
     limit: z.coerce.number().min(1).max(100).default(20),
     offset: z.coerce.number().min(0).default(0),
