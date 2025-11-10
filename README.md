@@ -65,6 +65,16 @@ A semi-automated photo restoration service that processes Facebook photo restora
 - `npm run format` - Format code with Prettier
 - `npm test` - Run tests (when implemented)
 
+### Dashboard Development with Mock Data
+
+For developing the review dashboard without requiring real Facebook integration or photo processing, see [**Mock Data Development Workflow**](docs/DEV_MOCK_DATA.md).
+
+This enables:
+- UI development with synthetic RequestRecord data
+- Testing approval/rejection workflows
+- Image comparison component development
+- No authentication or database dependencies required
+
 ### Database
 
 The system uses MongoDB with Client-Side Field Level Encryption (CSFLE) for sensitive data protection. Generate a master key:
