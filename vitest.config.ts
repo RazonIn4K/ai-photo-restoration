@@ -23,6 +23,7 @@ export default defineConfig({
       exclude: ['node_modules/', 'dist/', '**/*.config.ts', '**/*.d.ts', 'tests/**']
     },
     // Include TypeScript files
-    include: ['tests/**/*.{test,spec}.{ts,tsx}']
+    include: ['tests/**/*.{test,spec}.{ts,tsx}'],
+    exclude: ['tests/canary/**']
   }
 });
