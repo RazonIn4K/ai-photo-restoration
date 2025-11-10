@@ -17,7 +17,7 @@ export {
   getImageDimensions,
   closeExifTool,
   type PhotoRestorationMetadata,
-  type EXIFMetadata,
+  type EXIFMetadata
 } from './exif.js';
 
 // C2PA operations
@@ -34,7 +34,7 @@ export {
   type C2PAActionEntry,
   type C2PAActor,
   type C2PAAssertion,
-  type C2PAValidationResult,
+  type C2PAValidationResult
 } from './c2pa.js';
 
 // Combined operations
@@ -43,5 +43,5 @@ export {
   extractCompleteMetadata,
   verifyMetadataIntegrity,
   getMetadataSummary,
-  type EmbedResult,
+  type EmbedResult
 } from './embed.js';

@@ -14,10 +14,7 @@ import type { PhotoRestorationMetadata } from '../../src/metadata/exif.js';
 /**
  * Create a sample image buffer for testing
  */
-async function createSampleImage(
-  width: number = 64,
-  height: number = 64
-): Promise<Buffer> {
+async function createSampleImage(width: number = 64, height: number = 64): Promise<Buffer> {
   return sharp({
     create: {
       width,

@@ -26,5 +26,5 @@ export {
   serializeEncryptedData,
   deserializeEncryptedData,
   serializeEncryptedDEK,
-  deserializeEncryptedDEK,
+  deserializeEncryptedDEK
 } from './envelope.js';

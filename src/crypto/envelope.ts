@@ -58,7 +58,9 @@ export function getMasterKey(): Buffer {
 
   // Validate key length (should be 96 bytes as per MongoDB CSFLE requirements)
   if (key.length < KEY_LENGTH) {
-    throw new Error(`Master key too short. Expected at least ${KEY_LENGTH} bytes, got ${key.length}.`);
+    throw new Error(
+      `Master key too short. Expected at least ${KEY_LENGTH} bytes, got ${key.length}.`
+    );
   }
 
   // Use first 32 bytes for AES-256
@@ -86,7 +88,7 @@ export function encryptDEK(dek: Buffer, kek?: Buffer): EncryptedDEK {
   return {
     encryptedKey,
     iv,
-    authTag,
+    authTag
   };
 }
 
@@ -115,7 +117,7 @@ export function encrypt(data: Buffer, dek: Buffer): EncryptedData {
   return {
     ciphertext,
     iv,
-    authTag,
+    authTag
   };
 }
 
@@ -151,9 +153,7 @@ export function zeroizeKey(key: Buffer): void {
  * @param data - Data to encrypt
  * @returns Object containing encrypted data and encrypted DEK
  */
-export function envelopeEncrypt(
-  data: Buffer
-): {
+export function envelopeEncrypt(data: Buffer): {
   encryptedData: EncryptedData;
   encryptedDEK: EncryptedDEK;
 } {
@@ -169,7 +169,7 @@ export function envelopeEncrypt(
 
     return {
       encryptedData,
-      encryptedDEK,
+      encryptedDEK
     };
   } finally {
     // Always zeroize the DEK after use
@@ -261,7 +261,7 @@ export function deserializeEncryptedData(buffer: Buffer): EncryptedData {
   return {
     iv,
     authTag,
-    ciphertext,
+    ciphertext
   };
 }
 
@@ -317,6 +317,6 @@ export function deserializeEncryptedDEK(buffer: Buffer): EncryptedDEK {
   return {
     iv,
     authTag,
-    encryptedKey,
+    encryptedKey
   };
 }

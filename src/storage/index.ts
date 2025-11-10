@@ -9,5 +9,5 @@ export {
   type FileMetadata,
   type StoreResult,
   type RetrieveResult,
-  type StorageConfig,
+  type StorageConfig
 } from './content-addressed.js';

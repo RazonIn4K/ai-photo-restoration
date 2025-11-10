@@ -3,7 +3,11 @@ import type { Request, Response } from 'express';
 import { logger } from '../../lib/logger.js';
 import { RequestRecordModel } from '../../models/index.js';
 import { ingestPhoto } from '../../services/photo-ingestion.js';
-import type { IngestPhotoRequest, GetRequestParams, ListRequestsQuery } from '../schemas/requests.js';
+import type {
+  IngestPhotoRequest,
+  GetRequestParams,
+  ListRequestsQuery
+} from '../schemas/requests.js';
 
 /**
  * Handler for POST /api/requests/ingest
@@ -85,7 +89,8 @@ export async function getRequestHandler(req: Request, res: Response): Promise<vo
  */
 export async function listRequestsHandler(req: Request, res: Response): Promise<void> {
   try {
-    const { status, facebookGroupId, limit, offset, sortBy, sortOrder } = req.query as unknown as ListRequestsQuery;
+    const { status, facebookGroupId, limit, offset, sortBy, sortOrder } =
+      req.query as unknown as ListRequestsQuery;
 
     // Build query
     const query: Record<string, unknown> = {};
@@ -99,11 +104,7 @@ export async function listRequestsHandler(req: Request, res: Response): Promise<
 
     // Execute query
     const [requests, total] = await Promise.all([
-      RequestRecordModel.find(query)
-        .sort(sort)
-        .skip(offset)
-        .limit(limit)
-        .lean(),
+      RequestRecordModel.find(query).sort(sort).skip(offset).limit(limit).lean(),
       RequestRecordModel.countDocuments(query)
     ]);
 

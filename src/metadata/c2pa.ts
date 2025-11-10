@@ -22,18 +22,18 @@
  * C2PA Action types
  */
 export type C2PAAction =
-  | 'c2pa.created'           // Content was created
-  | 'c2pa.edited'            // Content was edited
-  | 'c2pa.filtered'          // Filter applied
+  | 'c2pa.created' // Content was created
+  | 'c2pa.edited' // Content was edited
+  | 'c2pa.filtered' // Filter applied
   | 'c2pa.color_adjustments' // Color adjusted
-  | 'c2pa.resized'           // Image resized
-  | 'c2pa.ai.inference'      // AI inference applied
-  | 'c2pa.ai.generative'     // AI generation
-  | 'c2pa.ai.training'       // Used in AI training
-  | 'c2pa.opened'            // File opened
-  | 'c2pa.placed'            // Asset placed
-  | 'c2pa.published'         // Content published
-  | 'c2pa.transcoded';       // Transcoded to different format
+  | 'c2pa.resized' // Image resized
+  | 'c2pa.ai.inference' // AI inference applied
+  | 'c2pa.ai.generative' // AI generation
+  | 'c2pa.ai.training' // Used in AI training
+  | 'c2pa.opened' // File opened
+  | 'c2pa.placed' // Asset placed
+  | 'c2pa.published' // Content published
+  | 'c2pa.transcoded'; // Transcoded to different format
 
 /**
  * C2PA Actor (person or organization)
@@ -168,8 +168,8 @@ export function createRestorationManifest(params: {
     claimGeneratorInfo: [
       {
         name: 'AI Photo Restoration Service',
-        version: '1.0.0',
-      },
+        version: '1.0.0'
+      }
     ],
     actions: [
       {
@@ -180,13 +180,13 @@ export function createRestorationManifest(params: {
         parameters: {
           model: params.aiModel,
           originalPostId: params.originalPostId,
-          requestId: params.requestId,
+          requestId: params.requestId
         },
         changes: [
           {
-            description: 'AI-powered photo restoration applied',
-          },
-        ],
+            description: 'AI-powered photo restoration applied'
+          }
+        ]
       },
       ...(params.approvedBy
         ? [
@@ -196,20 +196,20 @@ export function createRestorationManifest(params: {
               participants: [
                 {
                   type: 'person' as const,
-                  name: params.approvedBy,
-                },
-              ],
-            },
+                  name: params.approvedBy
+                }
+              ]
+            }
           ]
-        : []),
+        : [])
     ],
     assertions: [
       {
         label: 'c2pa.hash.data',
         data: {
           name: 'sha256',
-          value: params.originalSHA256,
-        },
+          value: params.originalSHA256
+        }
       },
       {
         label: 'stds.schema-org.CreativeWork',
@@ -217,12 +217,12 @@ export function createRestorationManifest(params: {
           author: [
             {
               '@type': 'Person',
-              name: params.approvedBy || 'Unknown',
-            },
+              name: params.approvedBy || 'Unknown'
+            }
           ],
-          datePublished: params.restorationTimestamp.toISOString(),
-        },
-      },
+          datePublished: params.restorationTimestamp.toISOString()
+        }
+      }
     ],
     ingredients: [
       {
@@ -230,9 +230,9 @@ export function createRestorationManifest(params: {
         format: 'image/jpeg',
         documentId: params.originalPostId,
         relationship: 'parentOf',
-        hash: params.originalSHA256,
-      },
-    ],
+        hash: params.originalSHA256
+      }
+    ]
   };
 
   // Add approval timestamp if provided
@@ -241,8 +241,8 @@ export function createRestorationManifest(params: {
       label: 'restoration.approval',
       data: {
         approvedBy: params.approvedBy || 'Unknown',
-        approvedAt: params.approvalTimestamp.toISOString(),
-      },
+        approvedAt: params.approvalTimestamp.toISOString()
+      }
     });
   }
 
@@ -266,7 +266,7 @@ export function validateManifest(manifest: unknown): C2PAValidationResult {
     return {
       valid: false,
       errors: ['Manifest must be an object'],
-      warnings: [],
+      warnings: []
     };
   }
 
@@ -309,7 +309,7 @@ export function validateManifest(manifest: unknown): C2PAValidationResult {
     valid,
     errors,
     warnings,
-    manifest: valid ? (m as C2PAManifest) : undefined,
+    manifest: valid ? (m as C2PAManifest) : undefined
   };
 }
 
@@ -407,7 +407,7 @@ export function extractActors(manifest: C2PAManifest): C2PAActor[] {
             actors.push({
               type: author['@type'] === 'Person' ? 'person' : 'organization',
               name: author.name,
-              identifier: author.identifier,
+              identifier: author.identifier
             });
           }
         });
@@ -421,7 +421,7 @@ export function extractActors(manifest: C2PAManifest): C2PAActor[] {
       if (action.softwareAgent) {
         actors.push({
           type: 'software',
-          name: action.softwareAgent,
+          name: action.softwareAgent
         });
       }
     });

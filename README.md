@@ -22,6 +22,7 @@ A semi-automated photo restoration service that processes Facebook photo restora
 ### Installation
 
 1. **Clone and install dependencies**:
+
    ```bash
    git clone <repository-url>
    cd ai-photo-restoration
@@ -29,12 +30,14 @@ A semi-automated photo restoration service that processes Facebook photo restora
    ```
 
 2. **Set up environment**:
+
    ```bash
    cp .env.example .env
    # Edit .env with your configuration
    ```
 
 3. **Start infrastructure**:
+
    ```bash
    docker compose up -d
    ```

@@ -75,8 +75,16 @@ describe('Storage-Model Integration', () => {
     });
 
     it('assigns different storage IDs to different photos', async () => {
-      const photo1 = await createTestImage({ width: 640, height: 480, color: { r: 255, g: 100, b: 50 } });
-      const photo2 = await createTestImage({ width: 800, height: 600, color: { r: 50, g: 100, b: 255 } });
+      const photo1 = await createTestImage({
+        width: 640,
+        height: 480,
+        color: { r: 255, g: 100, b: 50 }
+      });
+      const photo2 = await createTestImage({
+        width: 800,
+        height: 600,
+        color: { r: 50, g: 100, b: 255 }
+      });
 
       const result1 = await service.ingestOriginalPhoto(photo1, {
         originalPostId: 'fb_post1',
@@ -227,10 +235,7 @@ describe('Storage-Model Integration', () => {
       });
 
       // Verification should pass
-      const isValid = await service.verifyPhotoIntegrity(
-        result.storageId,
-        result.sha256
-      );
+      const isValid = await service.verifyPhotoIntegrity(result.storageId, result.sha256);
 
       expect(isValid).toBe(true);
     });
@@ -246,9 +251,9 @@ describe('Storage-Model Integration', () => {
       const wrongHash = 'wrong'.repeat(16);
 
       // Verification should fail
-      await expect(
-        service.verifyPhotoIntegrity(result.storageId, wrongHash)
-      ).rejects.toThrow('Storage ID mismatch');
+      await expect(service.verifyPhotoIntegrity(result.storageId, wrongHash)).rejects.toThrow(
+        'Storage ID mismatch'
+      );
     });
   });
 

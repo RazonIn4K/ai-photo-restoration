@@ -114,6 +114,7 @@ The AI Photo Restoration Service is a semi-automated system that processes photo
 4. THE Photo_Restoration_System SHALL provide opt-out mechanism for users who don't want AI processing
 5. WHERE EU AI Act applies, THE Photo_Restoration_System SHALL label AI-generated content appropriately
 6. THE Photo_Restoration_System SHALL embed C2PA manifests in restored images for provenance tracking
+
 ### Requirement 8
 
 **User Story:** As a photo restoration service operator, I want comprehensive data handling and privacy controls, so that I comply with privacy regulations and maintain user trust.

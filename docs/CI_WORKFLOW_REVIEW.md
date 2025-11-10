@@ -35,6 +35,7 @@ The current CI pipeline is well-structured with three parallel jobs covering lin
 **Impact**: Wastes CI minutes running tests on code that won't pass linting
 
 **Recommendation**:
+
 ```yaml
 jobs:
   lint-and-format:
@@ -42,12 +43,12 @@ jobs:
     # ... existing config
 
   security:
-    needs: [lint-and-format]  # Only run after lint passes
+    needs: [lint-and-format] # Only run after lint passes
     runs-on: ubuntu-latest
     # ... existing config
 
   test:
-    needs: [lint-and-format]  # Only run after lint passes
+    needs: [lint-and-format] # Only run after lint passes
     runs-on: ubuntu-latest
     # ... existing config
 ```
@@ -62,10 +63,11 @@ jobs:
 **Impact**: Test job provides false confidence - always passes
 
 **Recommendation**:
+
 ```yaml
 test:
   runs-on: ubuntu-latest
-  if: false  # Disable until real tests are implemented
+  if: false # Disable until real tests are implemented
   # ... rest of config
 ```
 
@@ -74,6 +76,7 @@ Or better yet:
 **Action Item**: Implement actual tests, then re-enable job
 
 **Suggested test frameworks**:
+
 - **Jest** (most popular): `npm install --save-dev jest @types/jest ts-jest`
 - **Vitest** (faster, ESM-native): `npm install --save-dev vitest`
 - **Mocha + Chai**: Traditional option
@@ -86,6 +89,7 @@ Or better yet:
 **Impact**: TypeScript compilation runs from scratch each time
 
 **Recommendation**:
+
 ```yaml
 - name: Cache TypeScript build
   uses: actions/cache@v4
@@ -111,13 +115,14 @@ Or better yet:
 **Current**: Uses `--audit-level moderate` and `audit-ci --moderate`
 
 **Recommendation**:
+
 ```yaml
 - name: Run security audit
   run: npm audit --audit-level moderate
-  continue-on-error: true  # Don't fail on audit issues
+  continue-on-error: true # Don't fail on audit issues
 
 - name: Check for HIGH/CRITICAL vulnerabilities only
-  run: npx audit-ci --high  # Only fail on high/critical
+  run: npx audit-ci --high # Only fail on high/critical
 
 - name: Generate audit report
   if: failure()
@@ -141,12 +146,13 @@ Or better yet:
 **Impact**: Missing compatibility issues with other Node versions
 
 **Recommendation**:
+
 ```yaml
 test:
   runs-on: ubuntu-latest
   strategy:
     matrix:
-      node-version: [18, 20, 22]  # Test LTS versions
+      node-version: [18, 20, 22] # Test LTS versions
 
   steps:
     - name: Setup Node.js ${{ matrix.node-version }}
@@ -166,18 +172,19 @@ test:
 **Impact**: Wastes CI minutes on outdated commits
 
 **Recommendation**:
+
 ```yaml
 name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true  # Cancel outdated runs
+  cancel-in-progress: true # Cancel outdated runs
 ```
 
 **Benefit**: Save CI minutes, faster feedback
@@ -206,6 +213,7 @@ concurrency:
 ### 8. **Artifact Upload for Failures** (Priority: LOW)
 
 **Recommendation**:
+
 ```yaml
 - name: Upload build artifacts on failure
   if: failure()
@@ -230,9 +238,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -243,67 +251,67 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Cache TypeScript build
-      uses: actions/cache@v4
-      with:
-        path: |
-          dist
-          node_modules/.cache
-        key: ${{ runner.os }}-build-${{ hashFiles('src/**/*.ts', 'tsconfig*.json') }}
-        restore-keys: |
-          ${{ runner.os }}-build-
+      - name: Cache TypeScript build
+        uses: actions/cache@v4
+        with:
+          path: |
+            dist
+            node_modules/.cache
+          key: ${{ runner.os }}-build-${{ hashFiles('src/**/*.ts', 'tsconfig*.json') }}
+          restore-keys: |
+            ${{ runner.os }}-build-
 
-    - name: Run ESLint
-      run: npm run lint
+      - name: Run ESLint
+        run: npm run lint
 
-    - name: Check Prettier formatting
-      run: npm run format
+      - name: Check Prettier formatting
+        run: npm run format
 
-    - name: Type check and build
-      run: npm run build
+      - name: Type check and build
+        run: npm run build
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-dist
-        path: dist/
-        retention-days: 7
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-dist
+          path: dist/
+          retention-days: 7
 
   security:
     needs: [lint-and-format]
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Run security audit
-      run: npm audit --audit-level moderate
-      continue-on-error: true
+      - name: Run security audit
+        run: npm audit --audit-level moderate
+        continue-on-error: true
 
-    - name: Check for HIGH/CRITICAL vulnerabilities
-      run: npx audit-ci --high
+      - name: Check for HIGH/CRITICAL vulnerabilities
+        run: npx audit-ci --high
 
   test:
     needs: [lint-and-format]
@@ -337,25 +345,25 @@ jobs:
           --health-retries 5
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Run tests
-      run: npm test
-      env:
-        NODE_ENV: test
-        MONGO_URI: mongodb://admin:changeme@localhost:27017/face_restore_test?authSource=admin
-        REDIS_URL: redis://localhost:6379
-        MONGO_DISABLE_CSFLE: true
+      - name: Run tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          MONGO_URI: mongodb://admin:changeme@localhost:27017/face_restore_test?authSource=admin
+          REDIS_URL: redis://localhost:6379
+          MONGO_DISABLE_CSFLE: true
 ```
 
 ---
@@ -363,6 +371,7 @@ jobs:
 ## Implementation Priority
 
 ### Phase 1 (Immediate) - Critical Fixes
+
 - [ ] Add job dependencies (`needs: [lint-and-format]`)
 - [ ] Disable test job until real tests exist
 - [ ] Add concurrency control
@@ -371,6 +380,7 @@ jobs:
 **Impact**: High - Saves CI minutes, prevents false confidence
 
 ### Phase 2 (Short-term) - Enhancements
+
 - [ ] Add TypeScript build caching
 - [ ] Improve security job with better reporting
 - [ ] Fix MongoDB health check command (use `mongosh` for Mongo 6+)
@@ -379,6 +389,7 @@ jobs:
 **Impact**: Medium - Faster CI runs, better debugging
 
 ### Phase 3 (Long-term) - Advanced Features
+
 - [ ] Implement actual tests (Jest/Vitest)
 - [ ] Add matrix testing for Node versions
 - [ ] Set up code coverage reporting
@@ -392,18 +403,23 @@ jobs:
 ## Additional Notes
 
 ### MongoDB Health Check Fix
+
 The current health check uses `mongo` which is deprecated in MongoDB 5+:
+
 ```yaml
 --health-cmd "mongo --eval 'db.adminCommand(\"ping\")'"
 ```
 
 Should be:
+
 ```yaml
 --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
 ```
 
 ### Missing Test Framework
+
 The project needs a test framework. Recommendations:
+
 - **Vitest**: Fast, ESM-native, works well with TypeScript
 - **Jest**: Industry standard, massive ecosystem
 - **Mocha + Chai**: Traditional, lightweight

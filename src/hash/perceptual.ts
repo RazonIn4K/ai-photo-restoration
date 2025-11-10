@@ -80,7 +80,7 @@ export async function computePerceptualHash(imageBuffer: Buffer): Promise<Percep
     hash,
     width: metadata.width ?? 0,
     height: metadata.height ?? 0,
-    format: metadata.format,
+    format: metadata.format
   };
 }
 
@@ -147,7 +147,7 @@ export function compareSimilarity(
   return {
     distance,
     similarity: Math.round(similarity * 100) / 100, // Round to 2 decimal places
-    isSimilar,
+    isSimilar
   };
 }
 
@@ -170,7 +170,7 @@ export function findSimilar(
       return {
         hash,
         distance: comparison.distance,
-        similarity: comparison.similarity,
+        similarity: comparison.similarity
       };
     })
     .filter(result => result.distance <= threshold)
@@ -185,7 +185,9 @@ export function findSimilar(
  * @param imageBuffers - Array of image buffers
  * @returns Array of perceptual hash results
  */
-export async function batchComputePerceptualHash(imageBuffers: Buffer[]): Promise<PerceptualHashResult[]> {
+export async function batchComputePerceptualHash(
+  imageBuffers: Buffer[]
+): Promise<PerceptualHashResult[]> {
   return Promise.all(imageBuffers.map(buffer => computePerceptualHash(buffer)));
 }
 

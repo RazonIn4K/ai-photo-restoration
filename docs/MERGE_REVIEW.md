@@ -26,18 +26,22 @@
 ### Changes Merged
 
 #### 1. CI/CD Workflow Optimizations
+
 **File**: `.github/workflows/ci.yml`
 
 ✅ **Concurrency Control**:
+
 ```yaml
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 ```
+
 - Cancels outdated workflow runs
 - Saves CI minutes on rapid pushes
 
 ✅ **Job Dependencies**:
+
 ```yaml
 security:
   needs: [lint-and-format]
@@ -45,25 +49,30 @@ security:
 test:
   needs: [lint-and-format]
 ```
+
 - Security and test jobs wait for lint to pass
 - Estimated savings: 5-10 minutes per failed lint
 
 ✅ **MongoDB Health Check Fix**:
+
 ```yaml
 --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
 ```
+
 - Updated from deprecated `mongo` command
 - Compatible with MongoDB 5.0+
 
 #### 2. Vitest Testing Infrastructure
 
 **Files Added**:
+
 - `vitest.config.ts` - Test configuration
 - `tests/setup.ts` - Test environment setup
 - `tests/lib/logger.test.ts` - First test suite
 - `package.json` - Updated with Vitest dependencies
 
 **Dependencies Added**:
+
 ```json
 {
   "devDependencies": {
@@ -75,6 +84,7 @@ test:
 ```
 
 **Scripts Added**:
+
 ```json
 {
   "test": "vitest run",
@@ -87,6 +97,7 @@ test:
 #### 3. Documentation
 
 **Files Added**:
+
 - `docs/CI_WORKFLOW_REVIEW.md` - 8 optimization recommendations
 - `docs/PROJECT_ROADMAP.md` - Complete 13-task roadmap
 - `scripts/monitor-workflow.sh` - GitHub Actions monitoring script
@@ -111,6 +122,7 @@ test:
 #### 1. Envelope Encryption Module
 
 **Files Added**:
+
 - `src/crypto/envelope.ts` (352 lines) - Core encryption implementation
 - `src/crypto/index.ts` - Module exports
 - `tests/crypto/envelope.test.ts` (421 lines) - Comprehensive test suite
@@ -119,11 +131,13 @@ test:
 **Implementation Details**:
 
 ✅ **Algorithm**: AES-256-GCM (Authenticated Encryption)
+
 - Key size: 256 bits (32 bytes)
 - IV size: 96 bits (12 bytes)
 - Auth tag: 128 bits (16 bytes)
 
 ✅ **Architecture**:
+
 ```
 Master Key (KEK) → Encrypts → Data Encryption Key (DEK)
                                          ↓
@@ -131,6 +145,7 @@ Master Key (KEK) → Encrypts → Data Encryption Key (DEK)
 ```
 
 ✅ **API Provided**:
+
 ```typescript
 // High-level API
 envelopeEncrypt(data: Buffer): { encryptedData, encryptedDEK }
@@ -281,6 +296,7 @@ Duration  956ms
 **Issue**: Test master key is in `vitest.config.ts` but not documented in `.env.example`
 
 **Recommendation**:
+
 ```bash
 # Add note to .env.example
 # Note: For tests, a master key is automatically provided.
@@ -300,6 +316,7 @@ Duration  956ms
 ### Implementation Plan
 
 #### 1. Storage Layout Design
+
 ```
 data/
 ├── originals/          # Original images
@@ -314,6 +331,7 @@ data/
 ```
 
 #### 2. Dependencies to Install
+
 ```bash
 npm install sharp sharp-phash
 npm install --save-dev @types/sharp
@@ -324,25 +342,30 @@ npm install --save-dev @types/sharp
 #### 3. Modules to Create
 
 **`src/storage/content-addressed.ts`**:
+
 - SHA-256 content addressing
 - Directory sharding logic
 - Encrypted file operations (using `src/crypto/envelope.ts`)
 - File metadata tracking
 
 **`src/hash/perceptual.ts`**:
+
 - Perceptual hash computation (pHash)
 - Similarity detection
 - Integration with sharp
 
 **`src/storage/index.ts`**:
+
 - Clean module exports
 
 **`tests/storage/content-addressed.test.ts`**:
+
 - Storage operations tests
 - Encryption integration tests
 - Deduplication tests
 
 **`tests/hash/perceptual.test.ts`**:
+
 - Perceptual hashing tests
 - Similarity detection tests
 
@@ -402,6 +425,7 @@ npm install --save-dev @types/sharp
 ### ✅ Merge Status: SUCCESS
 
 Both PR #2 and PR #3 have been successfully merged with:
+
 - ✅ All 31 tests passing
 - ✅ Zero linting errors
 - ✅ Clean build
