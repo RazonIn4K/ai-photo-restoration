@@ -1,40 +1,235 @@
-name: UI Canary
+name: UI Canary Pipeline
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '*/15 * * * *'
   pull_request:
+    types: [opened, synchronize, reopened]
     branches:
       - main
-      - 'feature/**'
+      - develop
+      - 'release/**'
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+env:
+  CANARY_REPORT_DIR: artifacts/canary
 
 jobs:
-  canary:
+  canary_pr_fast:
+    name: PR Canary - Fast Critical Smoke
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Install dependencies
-        run: npm ci
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps
-      - name: Run smoke canaries
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine canary eligibility
+        id: eligibility
         env:
-          CANARY_BASE_URL: ${{ secrets.CANARY_BASE_URL }}
+          IS_FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork || false }}
+          CANARY_BASE_URL: ${{ secrets.CANARY_BASE_URL_STAGING }}
           CANARY_USER_EMAIL: ${{ secrets.CANARY_USER_EMAIL }}
           CANARY_USER_PASSWORD: ${{ secrets.CANARY_USER_PASSWORD }}
-        run: npm run canary:smoke
-      - name: Upload artifacts
-        if: always()
+        run: |
+          if [ "${IS_FORK}" = "true" ]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason=untrusted fork" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -z "$CANARY_BASE_URL" ] || [ -z "$CANARY_USER_EMAIL" ] || [ -z "$CANARY_USER_PASSWORD" ]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason=missing staging secrets" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "eligible=true" >> "$GITHUB_OUTPUT"
+          echo "reason=" >> "$GITHUB_OUTPUT"
+
+      - name: Skip canary execution
+        if: ${{ steps.eligibility.outputs.eligible != 'true' }}
+        run: echo "Skipping PR canary run: ${{ steps.eligibility.outputs.reason || 'not eligible' }}"
+
+      - name: Setup Node
+        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
+        run: npm ci
+
+      - name: Install Playwright browsers
+        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
+        run: npx playwright install --with-deps
+
+      - name: Run fast smoke canaries
+        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
+        env:
+          CANARY_BASE_URL: ${{ secrets.CANARY_BASE_URL_STAGING }}
+          CANARY_USER_EMAIL: ${{ secrets.CANARY_USER_EMAIL }}
+          CANARY_USER_PASSWORD: ${{ secrets.CANARY_USER_PASSWORD }}
+          CANARY_ENV: 'pr'
+        run: |
+          mkdir -p "$CANARY_REPORT_DIR"
+          npm run canary:smoke
+
+      - name: Upload canary artifacts (PR fast)
+        if: ${{ always() && steps.eligibility.outputs.eligible == 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: canary-artifacts
+          name: ui-canary-pr-fast-${{ github.run_id }}
           path: |
-            artifacts/
+            artifacts/canary/
             playwright-report/
             test-results/
           if-no-files-found: ignore
+          retention-days: 7
+
+  canary_post_deploy_main:
+    name: Post-Deploy Canary - Main (Staging Gate)
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine canary eligibility
+        id: eligibility
+        env:
+          CANARY_BASE_URL: ${{ secrets.CANARY_BASE_URL_STAGING }}
+          CANARY_USER_EMAIL: ${{ secrets.CANARY_USER_EMAIL }}
+          CANARY_USER_PASSWORD: ${{ secrets.CANARY_USER_PASSWORD }}
+        run: |
+          if [ -z "$CANARY_BASE_URL" ] || [ -z "$CANARY_USER_EMAIL" ] || [ -z "$CANARY_USER_PASSWORD" ]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason=missing staging secrets" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "eligible=true" >> "$GITHUB_OUTPUT"
+          echo "reason=" >> "$GITHUB_OUTPUT"
+
+      - name: Skip canary execution
+        if: ${{ steps.eligibility.outputs.eligible != 'true' }}
+        run: echo "Skipping post-deploy canary run: ${{ steps.eligibility.outputs.reason || 'not eligible' }}"
+
+      - name: Setup Node
+        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
+        run: npm ci
+
+      - name: Install Playwright browsers
+        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
+        run: npx playwright install --with-deps
+
+      - name: Run staging canary suites
+        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
+        env:
+          CANARY_BASE_URL: ${{ secrets.CANARY_BASE_URL_STAGING }}
+          CANARY_USER_EMAIL: ${{ secrets.CANARY_USER_EMAIL }}
+          CANARY_USER_PASSWORD: ${{ secrets.CANARY_USER_PASSWORD }}
+          CANARY_ENV: 'staging-post-deploy'
+        run: |
+          mkdir -p "$CANARY_REPORT_DIR"
+          npm run canary:smoke
+          npm run canary:meta
+
+      - name: Upload canary artifacts (Post-deploy main)
+        if: ${{ always() && steps.eligibility.outputs.eligible == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-canary-post-deploy-${{ github.run_id }}
+          path: |
+            artifacts/canary/
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  canary_scheduled_prod:
+    name: Scheduled Canary - Continuous Monitoring
+    if: ${{ github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine canary eligibility
+        id: eligibility
+        env:
+          CANARY_BASE_URL: ${{ secrets.CANARY_BASE_URL_PROD }}
+          CANARY_USER_EMAIL: ${{ secrets.CANARY_USER_EMAIL }}
+          CANARY_USER_PASSWORD: ${{ secrets.CANARY_USER_PASSWORD }}
+        run: |
+          if [ -z "$CANARY_BASE_URL" ] || [ -z "$CANARY_USER_EMAIL" ] || [ -z "$CANARY_USER_PASSWORD" ]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            echo "reason=missing production secrets" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "eligible=true" >> "$GITHUB_OUTPUT"
+          echo "reason=" >> "$GITHUB_OUTPUT"
+
+      - name: Skip canary execution
+        if: ${{ steps.eligibility.outputs.eligible != 'true' }}
+        run: echo "Skipping scheduled canary run: ${{ steps.eligibility.outputs.reason || 'not eligible' }}"
+
+      - name: Setup Node
+        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
+        run: npm ci
+
+      - name: Install Playwright browsers
+        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
+        run: npx playwright install --with-deps
+
+      - name: Run production monitoring canaries
+        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
+        continue-on-error: true
+        env:
+          CANARY_BASE_URL: ${{ secrets.CANARY_BASE_URL_PROD }}
+          CANARY_USER_EMAIL: ${{ secrets.CANARY_USER_EMAIL }}
+          CANARY_USER_PASSWORD: ${{ secrets.CANARY_USER_PASSWORD }}
+          CANARY_ENV: 'prod-scheduled'
+        run: |
+          mkdir -p "$CANARY_REPORT_DIR"
+          npm run canary:smoke
+
+      - name: Upload canary artifacts (Scheduled)
+        if: ${{ always() && steps.eligibility.outputs.eligible == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-canary-scheduled-${{ github.run_id }}
+          path: |
+            artifacts/canary/
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 3
