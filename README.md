@@ -75,6 +75,15 @@ This enables:
 - Image comparison component development
 - No authentication or database dependencies required
 
+### Accessibility Features
+
+The review dashboard implements **WCAG 2.1 AA compliance** for inclusive operation. See [**Dashboard Accessibility Guide**](docs/dashboard/accessibility.md) for:
+- Alt-text workflow (AI-generated suggestions + manual editing)
+- Full keyboard navigation support
+- High-contrast mode implementation
+- Screen reader compatibility
+- Accessibility testing procedures
+
 ### Database
 
 The system uses MongoDB with Client-Side Field Level Encryption (CSFLE) for sensitive data protection. Generate a master key:
