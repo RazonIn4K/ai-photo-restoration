@@ -7,8 +7,8 @@ import { ulid } from 'ulid';
 
 import { createStorageIntegrationService } from './storage-integration.js';
 import { logger } from '../lib/logger.js';
-import { RequestRecordModel } from '../models/index.js';
 import type { PhotoAsset } from '../models/index.js';
+import { RequestRecordModel } from '../models/index.js';
 
 /**
  * Options for photo ingestion

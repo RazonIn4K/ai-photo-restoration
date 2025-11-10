@@ -1,512 +1,311 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import type { Browser, BrowserContext, Page } from 'playwright';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { GroupConfigModel } from '../../src/models/Config.js';
-import { RequestRecordModel } from '../../src/models/RequestRecord.js';
-import { FacebookIngestionService } from '../../src/services/facebook-ingestion.js';
-
-// Mock Playwright
-vi.mock('playwright', () => ({
-  chromium: {
-    launch: vi.fn()
-  }
-}));
-
-// Mock models
-vi.mock('../../src/models/Config.js', () => ({
-  GroupConfigModel: {
-    findOne: vi.fn()
-  }
-}));
-
-vi.mock('../../src/models/RequestRecord.js', () => ({
-  RequestRecordModel: {
-    findOne: vi.fn(),
-    create: vi.fn()
-  }
-}));
+import type { GroupConfig, VersionedSelectors, ZyteError } from '../../src/types/index.js';
+import {
+  FacebookIngestionService,
+  type ExtractedContent,
+  type PlaywrightExtractor
+} from '../../src/services/facebook-ingestion.js';
+import type { ZyteClient } from '../../src/services/zyte-client.js';
 
 describe('FacebookIngestionService', () => {
-  let service: FacebookIngestionService;
-  let mockBrowser: Browser;
-  let mockContext: BrowserContext;
-  let mockPage: Page;
+  let mockZyteClient: ZyteClient;
+  let mockPlaywrightExtractor: PlaywrightExtractor;
+  let groupConfig: GroupConfig;
 
-  beforeEach(async () => {
-    service = new FacebookIngestionService();
+  beforeEach(() => {
+    // Mock Zyte client
+    mockZyteClient = {
+      isEnabled: vi.fn().mockReturnValue(true),
+      extract: vi.fn()
+    } as unknown as ZyteClient;
 
-    // Setup mock page
-    mockPage = {
-      goto: vi.fn().mockResolvedValue(undefined),
-      locator: vi.fn(),
-      waitForSelector: vi.fn().mockResolvedValue(undefined),
-      close: vi.fn().mockResolvedValue(undefined)
-    } as any;
+    // Mock Playwright extractor
+    mockPlaywrightExtractor = {
+      isAvailable: vi.fn().mockReturnValue(true),
+      extract: vi.fn()
+    };
 
-    // Setup mock context
-    mockContext = {
-      newPage: vi.fn().mockResolvedValue(mockPage),
-      close: vi.fn().mockResolvedValue(undefined)
-    } as any;
+    // Sample group config
+    const selectors: VersionedSelectors = {
+      version: '1.0.0',
+      selectors: {
+        post: '.post-content',
+        author: '.author-name'
+      },
+      lastUpdated: new Date(),
+      isActive: true
+    };
 
-    // Setup mock browser
-    mockBrowser = {
-      newContext: vi.fn().mockResolvedValue(mockContext),
-      close: vi.fn().mockResolvedValue(undefined)
-    } as any;
-
-    // Mock chromium.launch
-    const { chromium } = await import('playwright');
-    vi.mocked(chromium.launch).mockResolvedValue(mockBrowser);
+    groupConfig = {
+      groupId: 'test-group-123',
+      groupName: 'Test Group',
+      selectors,
+      keywords: ['test', 'photo'],
+      lastScanTimestamp: new Date(),
+      extractionMethod: 'playwright',
+      canarySchedule: '0 */6 * * *',
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    } as GroupConfig;
   });
 
-  afterEach(async () => {
-    await service.cleanup();
-    vi.clearAllMocks();
+  describe('initialization', () => {
+    it('should create service with Zyte client only', () => {
+      const service = new FacebookIngestionService({ zyteClient: mockZyteClient });
+      expect(service).toBeDefined();
+    });
+
+    it('should create service with Playwright extractor only', () => {
+      const service = new FacebookIngestionService({
+        playwrightExtractor: mockPlaywrightExtractor
+      });
+      expect(service).toBeDefined();
+    });
+
+    it('should create service with both extractors', () => {
+      const service = new FacebookIngestionService({
+        zyteClient: mockZyteClient,
+        playwrightExtractor: mockPlaywrightExtractor
+      });
+      expect(service).toBeDefined();
+    });
+
+    it('should create service with no extractors', () => {
+      const service = new FacebookIngestionService({});
+      expect(service).toBeDefined();
+    });
   });
 
-  describe('discoverNewPosts', () => {
-    it('should discover posts from Facebook group', async () => {
-      const groupConfig = {
-        groupId: 'test-group-123',
-        selectors: {
-          version: '1.0.0',
-          selectors: {
-            postContainer: '[role="article"]',
-            postText: '[data-ad-preview="message"]',
-            posterName: 'a[role="link"] strong',
-            postLink: 'a[href*="/posts/"]',
-            postImage: 'img[src*="scontent"]'
-          },
-          lastUpdated: new Date(),
-          isActive: true
-        },
-        keywords: ['restore', 'fix'],
-        lastScanTimestamp: new Date(),
-        extractionMethod: 'playwright' as const,
-        canarySchedule: '0 */6 * * *'
+  describe('extractContent - Zyte mode', () => {
+    it('should extract using Zyte when method is "zyte"', async () => {
+      const service = new FacebookIngestionService({ zyteClient: mockZyteClient });
+
+      const mockZyteResponse = {
+        url: 'https://facebook.com/groups/test/posts/123',
+        statusCode: 200,
+        html: '<html>Test content</html>',
+        text: 'Test content'
       };
 
-      // Mock login check
-      const mockLoginLocator = {
-        isVisible: vi.fn().mockResolvedValue(false)
-      };
+      vi.mocked(mockZyteClient.extract).mockResolvedValue(mockZyteResponse);
 
-      // Mock image elements
-      const mockImageElement = {
-        getAttribute: vi.fn().mockResolvedValue('https://scontent.com/image1.jpg')
-      };
+      const config = { ...groupConfig, extractionMethod: 'zyte' as const };
+      const result = await service.extractContent(
+        'https://facebook.com/groups/test/posts/123',
+        config
+      );
 
-      // Mock post element with nested locators
-      const mockImageLocator = {
-        all: vi.fn().mockResolvedValue([mockImageElement])
-      };
+      expect(result.extractionMethod).toBe('zyte');
+      expect(result.html).toBe('<html>Test content</html>');
+      expect(result.text).toBe('Test content');
+      expect(mockZyteClient.extract).toHaveBeenCalledTimes(1);
+    });
 
-      const mockLinkLocator = {
-        first: vi.fn().mockReturnThis(),
-        getAttribute: vi.fn().mockResolvedValue('https://facebook.com/groups/test/posts/123')
-      };
+    it('should throw error when Zyte client not available', async () => {
+      const service = new FacebookIngestionService({});
 
-      const mockPosterLocator = {
-        first: vi.fn().mockReturnThis(),
-        textContent: vi.fn().mockResolvedValue('John Doe')
-      };
+      const config = { ...groupConfig, extractionMethod: 'zyte' as const };
 
-      const mockTextLocator = {
-        textContent: vi.fn().mockResolvedValue('Please restore this old photo')
-      };
+      await expect(
+        service.extractContent('https://facebook.com/groups/test/posts/123', config)
+      ).rejects.toThrow('Zyte client not configured');
+    });
 
-      const mockPostElement = {
-        locator: vi.fn((selector: string) => {
-          if (selector.includes('message')) return mockTextLocator;
-          if (selector.includes('strong')) return mockPosterLocator;
-          if (selector.includes('posts')) return mockLinkLocator;
-          if (selector.includes('img')) return mockImageLocator;
-          return mockTextLocator;
-        })
-      };
+    it('should throw error when Zyte client disabled', async () => {
+      vi.mocked(mockZyteClient.isEnabled).mockReturnValue(false);
+      const service = new FacebookIngestionService({ zyteClient: mockZyteClient });
 
-      const mockPostContainerLocator = {
-        all: vi.fn().mockResolvedValue([mockPostElement])
-      };
+      const config = { ...groupConfig, extractionMethod: 'zyte' as const };
 
-      // Setup page.locator to return appropriate mocks
-      vi.mocked(mockPage.locator).mockImplementation((selector: string) => {
-        if (selector.includes('email')) return mockLoginLocator as any;
-        if (selector.includes('article')) return mockPostContainerLocator as any;
-        return mockLoginLocator as any;
+      await expect(
+        service.extractContent('https://facebook.com/groups/test/posts/123', config)
+      ).rejects.toThrow('Zyte client not configured');
+    });
+  });
+
+  describe('extractContent - Playwright mode', () => {
+    it('should extract using Playwright when method is "playwright"', async () => {
+      const service = new FacebookIngestionService({
+        playwrightExtractor: mockPlaywrightExtractor
       });
 
-      const posts = await service.discoverNewPosts(groupConfig as any);
+      const mockPlaywrightResponse: ExtractedContent = {
+        html: '<html>Playwright content</html>',
+        text: 'Playwright content',
+        extractedAt: new Date(),
+        extractionMethod: 'playwright',
+        url: 'https://facebook.com/groups/test/posts/123'
+      };
 
-      expect(posts).toHaveLength(1);
-      expect(posts[0]).toMatchObject({
-        groupId: 'test-group-123',
-        posterName: 'John Doe',
-        postText: expect.stringContaining('restore'),
-        imageUrls: expect.arrayContaining([expect.stringContaining('scontent')])
+      vi.mocked(mockPlaywrightExtractor.extract).mockResolvedValue(mockPlaywrightResponse);
+
+      const config = { ...groupConfig, extractionMethod: 'playwright' as const };
+      const result = await service.extractContent(
+        'https://facebook.com/groups/test/posts/123',
+        config
+      );
+
+      expect(result.extractionMethod).toBe('playwright');
+      expect(result.html).toBe('<html>Playwright content</html>');
+      expect(mockPlaywrightExtractor.extract).toHaveBeenCalledWith(
+        'https://facebook.com/groups/test/posts/123',
+        groupConfig.selectors.selectors
+      );
+    });
+
+    it('should throw error when Playwright extractor not available', async () => {
+      const service = new FacebookIngestionService({});
+
+      const config = { ...groupConfig, extractionMethod: 'playwright' as const };
+
+      await expect(
+        service.extractContent('https://facebook.com/groups/test/posts/123', config)
+      ).rejects.toThrow('Playwright extractor not configured');
+    });
+  });
+
+  describe('extractContent - Hybrid mode', () => {
+    it('should try Zyte first and succeed', async () => {
+      const service = new FacebookIngestionService({
+        zyteClient: mockZyteClient,
+        playwrightExtractor: mockPlaywrightExtractor
       });
-    });
 
-    it('should throw error when login is required', async () => {
-      const groupConfig = {
-        groupId: 'test-group-123',
-        selectors: {
-          version: '1.0.0',
-          selectors: {},
-          lastUpdated: new Date(),
-          isActive: true
-        },
-        keywords: ['restore'],
-        lastScanTimestamp: new Date(),
-        extractionMethod: 'playwright' as const,
-        canarySchedule: '0 */6 * * *'
+      const mockZyteResponse = {
+        url: 'https://facebook.com/groups/test/posts/123',
+        statusCode: 200,
+        html: '<html>Zyte content</html>',
+        text: 'Zyte content'
       };
 
-      // Mock login page detection
-      const mockLoginLocator = {
-        isVisible: vi.fn().mockResolvedValue(true)
-      };
-      vi.mocked(mockPage.locator).mockReturnValue(mockLoginLocator as any);
+      vi.mocked(mockZyteClient.extract).mockResolvedValue(mockZyteResponse);
 
-      await expect(service.discoverNewPosts(groupConfig as any)).rejects.toThrow(
-        'Facebook login required'
+      const config = { ...groupConfig, extractionMethod: 'hybrid' as const };
+      const result = await service.extractContent(
+        'https://facebook.com/groups/test/posts/123',
+        config
       );
+
+      expect(result.extractionMethod).toBe('zyte');
+      expect(result.html).toBe('<html>Zyte content</html>');
+      expect(mockZyteClient.extract).toHaveBeenCalledTimes(1);
+      expect(mockPlaywrightExtractor.extract).not.toHaveBeenCalled();
     });
 
-    it('should filter posts that do not match keywords', async () => {
-      const groupConfig = {
-        groupId: 'test-group-123',
-        selectors: {
-          version: '1.0.0',
-          selectors: {
-            postContainer: '[role="article"]',
-            postText: '[data-ad-preview="message"]'
-          },
-          lastUpdated: new Date(),
-          isActive: true
-        },
-        keywords: ['restore', 'repair'],
-        lastScanTimestamp: new Date(),
-        extractionMethod: 'playwright' as const,
-        canarySchedule: '0 */6 * * *'
+    it('should fall back to Playwright when Zyte fails', async () => {
+      const service = new FacebookIngestionService({
+        zyteClient: mockZyteClient,
+        playwrightExtractor: mockPlaywrightExtractor
+      });
+
+      const zyteError: ZyteError = {
+        type: 'timeout',
+        message: 'Request timeout',
+        retryable: true
       };
 
-      // Mock login check
-      const mockLoginLocator = {
-        isVisible: vi.fn().mockResolvedValue(false)
+      vi.mocked(mockZyteClient.extract).mockRejectedValue(zyteError);
+
+      const mockPlaywrightResponse: ExtractedContent = {
+        html: '<html>Playwright fallback content</html>',
+        text: 'Playwright fallback content',
+        extractedAt: new Date(),
+        extractionMethod: 'playwright',
+        url: 'https://facebook.com/groups/test/posts/123'
       };
 
-      // Mock post with non-matching text
-      const mockPostElement = {
-        locator: vi.fn().mockReturnThis(),
-        textContent: vi.fn().mockResolvedValue('Just a regular post about cats')
-      };
+      vi.mocked(mockPlaywrightExtractor.extract).mockResolvedValue(mockPlaywrightResponse);
 
-      const mockPostLocator = {
-        all: vi.fn().mockResolvedValue([mockPostElement])
-      };
-
-      vi.mocked(mockPage.locator)
-        .mockReturnValueOnce(mockLoginLocator as any)
-        .mockReturnValueOnce(mockPostLocator as any);
-
-      const posts = await service.discoverNewPosts(groupConfig as any);
-
-      expect(posts).toHaveLength(0);
-    });
-  });
-
-  describe('validatePost', () => {
-    it('should validate a valid post candidate', async () => {
-      const candidate = {
-        postId: '123',
-        postUrl: 'https://facebook.com/groups/test/posts/123',
-        groupId: 'test-group',
-        posterName: 'John Doe',
-        postText: 'Please restore this old photo',
-        imageUrls: ['https://scontent.com/image1.jpg'],
-        timestamp: new Date()
-      };
-
-      vi.mocked(RequestRecordModel.findOne).mockResolvedValue(null);
-
-      const result = await service.validatePost(candidate);
-
-      expect(result.isValid).toBe(true);
-      expect(result.candidate).toEqual(candidate);
-    });
-
-    it('should reject duplicate posts', async () => {
-      const candidate = {
-        postId: '123',
-        postUrl: 'https://facebook.com/groups/test/posts/123',
-        groupId: 'test-group',
-        posterName: 'John Doe',
-        postText: 'Please restore this old photo',
-        imageUrls: ['https://scontent.com/image1.jpg'],
-        timestamp: new Date()
-      };
-
-      vi.mocked(RequestRecordModel.findOne).mockResolvedValue({ requestId: 'existing' } as any);
-
-      const result = await service.validatePost(candidate);
-
-      expect(result.isValid).toBe(false);
-      expect(result.reason).toContain('Duplicate');
-    });
-
-    it('should reject posts without images', async () => {
-      const candidate = {
-        postId: '123',
-        postUrl: 'https://facebook.com/groups/test/posts/123',
-        groupId: 'test-group',
-        posterName: 'John Doe',
-        postText: 'Please restore this old photo',
-        imageUrls: [],
-        timestamp: new Date()
-      };
-
-      vi.mocked(RequestRecordModel.findOne).mockResolvedValue(null);
-
-      const result = await service.validatePost(candidate);
-
-      expect(result.isValid).toBe(false);
-      expect(result.reason).toContain('No images');
-    });
-
-    it('should reject posts without restoration intent', async () => {
-      const candidate = {
-        postId: '123',
-        postUrl: 'https://facebook.com/groups/test/posts/123',
-        groupId: 'test-group',
-        posterName: 'John Doe',
-        postText: 'Just sharing a random photo',
-        imageUrls: ['https://scontent.com/image1.jpg'],
-        timestamp: new Date()
-      };
-
-      vi.mocked(RequestRecordModel.findOne).mockResolvedValue(null);
-
-      const result = await service.validatePost(candidate);
-
-      expect(result.isValid).toBe(false);
-      expect(result.reason).toContain('restoration request');
-    });
-  });
-
-  describe('ingestPost', () => {
-    it('should create request record for validated post', async () => {
-      const validatedPost = {
-        postId: '123',
-        postUrl: 'https://facebook.com/groups/test/posts/123',
-        groupId: 'test-group',
-        posterName: 'John Doe',
-        postText: 'Please restore this old photo',
-        imageUrls: ['https://scontent.com/image1.jpg', 'https://scontent.com/image2.jpg'],
-        timestamp: new Date(),
-        validatedAt: new Date()
-      };
-
-      const mockRequestRecord = {
-        requestId: 'test-request-123',
-        ...validatedPost,
-        assets: [
-          {
-            assetId: 'test-request-123-0',
-            originalImageUrl: 'https://scontent.com/image1.jpg',
-            selected: true
-          },
-          {
-            assetId: 'test-request-123-1',
-            originalImageUrl: 'https://scontent.com/image2.jpg',
-            selected: false
-          }
-        ]
-      };
-
-      vi.mocked(RequestRecordModel.create).mockResolvedValue(mockRequestRecord as any);
-
-      const result = await service.ingestPost(validatedPost);
-
-      expect(result).toBeDefined();
-      expect(RequestRecordModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          facebookPostId: '123',
-          postUrl: 'https://facebook.com/groups/test/posts/123',
-          assets: expect.arrayContaining([
-            expect.objectContaining({
-              originalImageUrl: 'https://scontent.com/image1.jpg',
-              selected: true
-            }),
-            expect.objectContaining({
-              originalImageUrl: 'https://scontent.com/image2.jpg',
-              selected: false
-            })
-          ])
-        })
+      const config = { ...groupConfig, extractionMethod: 'hybrid' as const };
+      const result = await service.extractContent(
+        'https://facebook.com/groups/test/posts/123',
+        config
       );
+
+      expect(result.extractionMethod).toBe('playwright');
+      expect(result.html).toBe('<html>Playwright fallback content</html>');
+      expect(result.metadata?.fallbackUsed).toBe(true);
+      expect(mockZyteClient.extract).toHaveBeenCalledTimes(1);
+      expect(mockPlaywrightExtractor.extract).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle multi-photo posts correctly', async () => {
-      const validatedPost = {
-        postId: '123',
-        postUrl: 'https://facebook.com/groups/test/posts/123',
-        groupId: 'test-group',
-        posterName: 'John Doe',
-        postText: 'Please restore these photos',
-        imageUrls: [
-          'https://scontent.com/image1.jpg',
-          'https://scontent.com/image2.jpg',
-          'https://scontent.com/image3.jpg'
-        ],
-        timestamp: new Date(),
-        validatedAt: new Date()
+    it('should use Playwright when Zyte not enabled', async () => {
+      vi.mocked(mockZyteClient.isEnabled).mockReturnValue(false);
+
+      const service = new FacebookIngestionService({
+        zyteClient: mockZyteClient,
+        playwrightExtractor: mockPlaywrightExtractor
+      });
+
+      const mockPlaywrightResponse: ExtractedContent = {
+        html: '<html>Playwright content</html>',
+        text: 'Playwright content',
+        extractedAt: new Date(),
+        extractionMethod: 'playwright',
+        url: 'https://facebook.com/groups/test/posts/123'
       };
 
-      vi.mocked(RequestRecordModel.create).mockResolvedValue({} as any);
+      vi.mocked(mockPlaywrightExtractor.extract).mockResolvedValue(mockPlaywrightResponse);
 
-      await service.ingestPost(validatedPost);
-
-      expect(RequestRecordModel.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          assets: expect.arrayContaining([
-            expect.objectContaining({ selected: true }), // First image selected
-            expect.objectContaining({ selected: false }), // Others not selected
-            expect.objectContaining({ selected: false })
-          ])
-        })
+      const config = { ...groupConfig, extractionMethod: 'hybrid' as const };
+      const result = await service.extractContent(
+        'https://facebook.com/groups/test/posts/123',
+        config
       );
+
+      expect(result.extractionMethod).toBe('playwright');
+      expect(mockZyteClient.extract).not.toHaveBeenCalled();
+      expect(mockPlaywrightExtractor.extract).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw error when both extractors unavailable', async () => {
+      const service = new FacebookIngestionService({});
+
+      const config = { ...groupConfig, extractionMethod: 'hybrid' as const };
+
+      await expect(
+        service.extractContent('https://facebook.com/groups/test/posts/123', config)
+      ).rejects.toThrow('No extraction service available for hybrid mode');
+    });
+
+    it('should throw error when Zyte fails and Playwright unavailable', async () => {
+      const service = new FacebookIngestionService({
+        zyteClient: mockZyteClient
+      });
+
+      const zyteError: ZyteError = {
+        type: 'timeout',
+        message: 'Request timeout',
+        retryable: true
+      };
+
+      vi.mocked(mockZyteClient.extract).mockRejectedValue(zyteError);
+
+      const config = { ...groupConfig, extractionMethod: 'hybrid' as const };
+
+      await expect(
+        service.extractContent('https://facebook.com/groups/test/posts/123', config)
+      ).rejects.toThrow('No extraction service available for hybrid mode');
     });
   });
 
-  describe('runCanaryTest', () => {
-    it('should test selectors and return success when all work', async () => {
-      const groupConfig = {
-        groupId: 'test-group-123',
-        selectors: {
-          version: '1.0.0',
-          selectors: {
-            postContainer: '[role="article"]',
-            postText: '[data-ad-preview="message"]'
-          },
-          lastUpdated: new Date(),
-          isActive: true
-        },
-        isActive: true
+  describe('extractContent - Unknown method', () => {
+    it('should throw error for unknown extraction method', async () => {
+      const service = new FacebookIngestionService({
+        zyteClient: mockZyteClient,
+        playwrightExtractor: mockPlaywrightExtractor
+      });
+
+      const config = {
+        ...groupConfig,
+        extractionMethod: 'unknown' as 'playwright'
       };
 
-      vi.mocked(GroupConfigModel.findOne).mockResolvedValue(groupConfig as any);
-
-      // Mock selector tests
-      const mockElement = {
-        isVisible: vi.fn().mockResolvedValue(true)
-      };
-
-      const mockLocator = {
-        first: vi.fn().mockReturnValue(mockElement)
-      };
-
-      vi.mocked(mockPage.locator).mockReturnValue(mockLocator as any);
-
-      const result = await service.runCanaryTest('test-group-123');
-
-      expect(result.success).toBe(true);
-      expect(result.selectorsWorking).toBe(true);
-      expect(result.failedSelectors).toBeUndefined();
-    });
-
-    it('should detect failed selectors', async () => {
-      const groupConfig = {
-        groupId: 'test-group-123',
-        selectors: {
-          version: '1.0.0',
-          selectors: {
-            postContainer: '[role="article"]',
-            postText: '[data-ad-preview="message"]'
-          },
-          lastUpdated: new Date(),
-          isActive: true
-        },
-        isActive: true
-      };
-
-      vi.mocked(GroupConfigModel.findOne).mockResolvedValue(groupConfig as any);
-
-      // Mock one selector failing
-      const mockElement = {
-        isVisible: vi
-          .fn()
-          .mockResolvedValueOnce(true) // First selector works
-          .mockResolvedValueOnce(false) // Second selector fails
-      };
-
-      const mockLocator = {
-        first: vi.fn().mockReturnValue(mockElement)
-      };
-
-      vi.mocked(mockPage.locator).mockReturnValue(mockLocator as any);
-
-      const result = await service.runCanaryTest('test-group-123');
-
-      expect(result.success).toBe(false);
-      expect(result.selectorsWorking).toBe(false);
-      expect(result.failedSelectors).toContain('postText');
-    });
-
-    it('should handle group not found error', async () => {
-      vi.mocked(GroupConfigModel.findOne).mockResolvedValue(null);
-
-      const result = await service.runCanaryTest('non-existent-group');
-
-      expect(result.success).toBe(false);
-      expect(result.errorMessage).toContain('not found');
-    });
-  });
-
-  describe('Browser session management', () => {
-    it('should reuse browser session within timeout', async () => {
-      const groupConfig = {
-        groupId: 'test-group-123',
-        selectors: {
-          version: '1.0.0',
-          selectors: {},
-          lastUpdated: new Date(),
-          isActive: true
-        },
-        keywords: ['restore'],
-        lastScanTimestamp: new Date(),
-        extractionMethod: 'playwright' as const,
-        canarySchedule: '0 */6 * * *'
-      };
-
-      // Mock login check and empty posts
-      const mockLoginLocator = {
-        isVisible: vi.fn().mockResolvedValue(false)
-      };
-
-      const mockPostLocator = {
-        all: vi.fn().mockResolvedValue([])
-      };
-
-      vi.mocked(mockPage.locator)
-        .mockReturnValue(mockLoginLocator as any)
-        .mockReturnValueOnce(mockLoginLocator as any)
-        .mockReturnValueOnce(mockPostLocator as any)
-        .mockReturnValueOnce(mockLoginLocator as any)
-        .mockReturnValueOnce(mockPostLocator as any);
-
-      // First call creates session
-      await service.discoverNewPosts(groupConfig as any);
-
-      const { chromium } = await import('playwright');
-      const launchCallCount = vi.mocked(chromium.launch).mock.calls.length;
-
-      // Second call should reuse session
-      await service.discoverNewPosts(groupConfig as unknown);
-
-      expect(vi.mocked(chromium.launch).mock.calls.length).toBe(launchCallCount);
+      await expect(
+        service.extractContent('https://facebook.com/groups/test/posts/123', config)
+      ).rejects.toThrow('Unknown extraction method: unknown');
     });
   });
 });

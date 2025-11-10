@@ -71,7 +71,52 @@ const envSchema = z.object({
   USE_MOCK_DASHBOARD: z
     .string()
     .default('false')
-    .transform(value => value === 'true')
+    .transform(value => value === 'true'),
+  // Zyte API configuration (optional, disabled if ZYTE_API_KEY not provided)
+  ZYTE_API_KEY: z
+    .string()
+    .optional()
+    .describe('Zyte API key for web scraping service'),
+  ZYTE_API_URL: z
+    .string()
+    .url('ZYTE_API_URL must be a valid URL')
+    .default('https://api.zyte.com/v1/extract'),
+  ZYTE_RATE_LIMIT_PER_MINUTE: z
+    .string()
+    .default('60')
+    .transform(value => Number(value))
+    .pipe(
+      z
+        .number()
+        .int()
+        .min(1)
+        .max(1000)
+        .describe('ZYTE_RATE_LIMIT_PER_MINUTE must be within 1-1000')
+    ),
+  ZYTE_RETRY_MAX_ATTEMPTS: z
+    .string()
+    .default('3')
+    .transform(value => Number(value))
+    .pipe(
+      z
+        .number()
+        .int()
+        .min(1)
+        .max(10)
+        .describe('ZYTE_RETRY_MAX_ATTEMPTS must be within 1-10')
+    ),
+  ZYTE_TIMEOUT_MS: z
+    .string()
+    .default('30000')
+    .transform(value => Number(value))
+    .pipe(
+      z
+        .number()
+        .int()
+        .min(1000)
+        .max(120000)
+        .describe('ZYTE_TIMEOUT_MS must be within 1000-120000ms')
+    )
 });
 
 const parseResult = envSchema.safeParse(process.env);
