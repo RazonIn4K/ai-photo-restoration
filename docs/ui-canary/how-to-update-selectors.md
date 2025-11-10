@@ -1,14 +1,17 @@
 # How to Update Selectors
 
 **Last Updated**: 2025-11-10
+**Status**: 📋 **Guide for Planned Implementation (Task 7.2)**
 **Audience**: Engineers maintaining the canary system
 **Prerequisites**: Node.js 20, Playwright installed, Facebook test account access
+
+> **Note**: This guide describes procedures for maintaining the UI canary system to be implemented in Task 7.2. File paths reference planned structure.
 
 ---
 
 ## Overview
 
-This guide provides step-by-step instructions for updating `src/canary/selectors.ts` when Facebook UI changes break the canary tests. You'll learn how to:
+This guide provides step-by-step instructions for updating `src/canary/selectors.ts` (to be created) when Facebook UI changes break the canary tests. You'll learn how to:
 
 1. Inspect Facebook's current UI structure
 2. Update selector contracts with new values
@@ -22,7 +25,7 @@ This guide provides step-by-step instructions for updating `src/canary/selectors
 
 ### Triggers
 
-Update selectors when you observe:
+Update selectors when you observe (once canary system is implemented):
 
 - ✅ **Scheduled canary test failures** in GitHub Actions
 - ✅ **Fallback depth > 1** consistently (check Grafana)
@@ -34,7 +37,7 @@ Update selectors when you observe:
 Before starting, verify the failure is selector-related:
 
 ```bash
-# Check recent canary workflow runs
+# Check recent canary workflow runs (once workflows are created)
 gh run list --workflow=canary-scheduled.yml --limit 5
 
 # Download latest failure artifacts
@@ -98,7 +101,7 @@ Collect **3-5 selector candidates** per element:
 ### 2.1 Open the Selector File
 
 ```bash
-# Edit the selector contracts
+# Edit the selector contracts (file to be created in Task 7.2)
 code src/canary/selectors.ts
 ```
 
@@ -162,7 +165,8 @@ Storage state (authenticated sessions) expire after **60 days**. Refresh proacti
 ### 3.1 Generate New Storage State
 
 ```bash
-# Launch Playwright with manual auth
+# Launch Playwright with manual auth (create .auth/ directory first)
+mkdir -p .auth
 npx playwright codegen \
   --save-storage=.auth/facebook.json \
   https://facebook.com
@@ -211,11 +215,11 @@ Visual regression tests compare screenshots against **baseline images**. Regener
 ### 4.1 Update Snapshots Locally
 
 ```bash
-# Regenerate all visual baselines
+# Regenerate all visual baselines (once tests are created)
 npx playwright test tests/canary/visual.spec.ts --update-snapshots
 
 # This creates/updates files in:
-# tests/canary/__screenshots__/
+# tests/canary/__screenshots__/ (directory to be created)
 ```
 
 ### 4.2 Review Changes
@@ -252,7 +256,7 @@ git commit -m "test(canary): update visual baselines for Facebook UI v2025-11"
 ### 5.1 Run Full Canary Suite
 
 ```bash
-# Run all canary tests
+# Run all canary tests (once test suite is implemented)
 npm run test:canary
 
 # Or with Playwright directly:
@@ -399,7 +403,7 @@ gh run view --log
 
 ### 7.1 Update Test Expectations
 
-If selector changes affect test assertions, update `tests/canary/*.spec.ts`:
+If selector changes affect test assertions, update `tests/canary/*.spec.ts` (files to be created in Task 7.2):
 
 **Example**: Post container structure changed
 
@@ -432,7 +436,7 @@ test('extract post metadata', async ({ page }) => {
 
 ### 7.2 Update Fixtures
 
-If storage state format changes (rare), update `tests/canary/fixtures.ts`:
+If storage state format changes (rare), update `tests/canary/fixtures.ts` (file to be created in Task 7.2):
 
 ```typescript
 import { test as base } from '@playwright/test';

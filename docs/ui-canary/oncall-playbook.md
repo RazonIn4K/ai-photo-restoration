@@ -1,14 +1,17 @@
 # Oncall Playbook: Canary Failures
 
 **Last Updated**: 2025-11-10
+**Status**: 📋 **Playbook for Planned Implementation (Task 7.2)**
 **Audience**: On-call engineers responding to canary test failures
 **Severity Levels**: P0 (Critical), P1 (High), P2 (Medium), P3 (Low)
+
+> **Note**: This playbook describes incident response procedures for the UI canary system to be implemented in Task 7.2. File paths and workflow references represent planned structure.
 
 ---
 
 ## Overview
 
-This playbook provides **step-by-step incident response** procedures for UI canary test failures. Use it to:
+This playbook provides **step-by-step incident response** procedures for UI canary test failures (once implemented). Use it to:
 
 1. **Triage** failures quickly (5-10 minutes)
 2. **Diagnose** root cause (10-30 minutes)
@@ -22,18 +25,18 @@ This playbook provides **step-by-step incident response** procedures for UI cana
 
 | Alert Source | Severity | Response SLA | Example |
 |--------------|----------|--------------|---------|
-| **PR Check Failure** | P2 (Medium) | 2 hours | `canary-pr.yml` fails on non-fork PR |
-| **Post-Deploy Failure** | P1 (High) | 30 minutes | `canary-deploy.yml` fails after merge to `main` |
-| **Scheduled Failure** | P1 (High) | 1 hour | `canary-scheduled.yml` nightly run fails |
+| **PR Check Failure** | P2 (Medium) | 2 hours | `canary-pr.yml` (planned) fails on non-fork PR |
+| **Post-Deploy Failure** | P1 (High) | 30 minutes | `canary-deploy.yml` (planned) fails after merge to `main` |
+| **Scheduled Failure** | P1 (High) | 1 hour | `canary-scheduled.yml` (planned) nightly run fails |
 | **Repeated Fallback Use** | P3 (Low) | 1 business day | Grafana alert: fallback depth > 1 for 7 days |
 
 ---
 
 ## Quick Triage Checklist
 
-**Complete this in < 10 minutes**:
+**Complete this in < 10 minutes** (once canary system is operational):
 
-- [ ] **Identify** which workflow failed (`canary-pr`, `canary-deploy`, `canary-scheduled`)
+- [ ] **Identify** which workflow failed (`canary-pr`, `canary-deploy`, `canary-scheduled` - workflows to be created)
 - [ ] **Check** if failure affects production ingestion (review metrics dashboard)
 - [ ] **Determine** if failure is isolated (single run) or persistent (3+ consecutive runs)
 - [ ] **Verify** eligibility gating status (fork/secret access issues?)
@@ -48,7 +51,7 @@ This playbook provides **step-by-step incident response** procedures for UI cana
 
 ### Scenario 1: PR Check Failure
 
-**Alert**: GitHub Actions check `canary-pr` fails on a pull request
+**Alert**: GitHub Actions check `canary-pr` (workflow to be created) fails on a pull request
 
 #### Step 1: Verify PR Context
 
@@ -123,7 +126,7 @@ gh pr merge <pr-number> --squash --body "Merging despite canary failure (unrelat
 
 ### Scenario 2: Post-Deploy Failure
 
-**Alert**: Slack notification "🚨 Canary post-deploy test failed" after merge to `main`
+**Alert**: Slack notification "🚨 Canary post-deploy test failed" after merge to `main` (alerts to be configured)
 
 **Severity**: **P1 (High)** - Production deployment may have broken selectors
 
@@ -184,7 +187,7 @@ git checkout main
 git pull
 git checkout -b hotfix/canary-selectors-$(date +%Y%m%d)
 
-# Edit src/canary/selectors.ts with emergency fix
+# Edit src/canary/selectors.ts with emergency fix (file to be created in Task 7.2)
 # (Use Playwright Inspector to find correct selector)
 
 # Test locally
@@ -231,7 +234,7 @@ gh run watch
 
 ### Scenario 3: Scheduled Failure (Nightly)
 
-**Alert**: Slack notification "🚨 Canary scheduled test failed" at 2:05 AM UTC
+**Alert**: Slack notification "🚨 Canary scheduled test failed" at 2:05 AM UTC (alerts to be configured)
 
 **Severity**: **P1 (High)** - Indicates Facebook UI change detected overnight
 
@@ -462,9 +465,9 @@ npx playwright show-report
 
 ### Application Logs (Pino)
 
-**Location**: Check your log aggregation service (e.g., CloudWatch, Datadog)
+**Location**: Check your log aggregation service (e.g., CloudWatch, Datadog) - to be configured
 
-**Query for canary events**:
+**Query for canary events** (once logging is implemented):
 ```json
 {
   "logger": "canary",
@@ -489,9 +492,9 @@ fields @timestamp, selector, fallback_depth, used
 
 ### Metrics (Prometheus/Grafana)
 
-**Grafana Dashboard**: https://grafana.yourapp.com/d/canary
+**Grafana Dashboard**: To be created - Task 7.2 (example: https://grafana.yourapp.com/d/canary)
 
-**Key Panels**:
+**Key Panels** (planned):
 
 1. **Selector Success Rate** (last 24h)
    - Metric: `canary_selector_success_rate{name}`

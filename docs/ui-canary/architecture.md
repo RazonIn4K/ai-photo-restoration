@@ -1,7 +1,9 @@
 # UI Canary System Architecture
 
 **Last Updated**: 2025-11-10
-**Status**: Documentation for planned implementation (Task 7.2)
+**Status**: 📋 **Documentation for Planned Implementation (Task 7.2)**
+
+> **Note**: This document describes the design for the UI canary system to be implemented in Task 7.2. All file paths and references below represent planned code structure, not existing files.
 
 ---
 
@@ -9,13 +11,13 @@
 
 The UI Canary system provides **automated resilience testing** for Facebook UI selectors used in the assisted ingestion service. It validates that Playwright-based scraping can reliably detect restoration requests despite Facebook's frequent UI changes.
 
-### Key Components
+### Key Components (Planned - Task 7.2)
 
-1. **Selector Contracts** (`src/canary/selectors.ts`) - Versioned, contract-based selectors
-2. **Resilient Resolver** (`src/canary/resolver.ts`) - Fallback chain for selector failures
-3. **Playwright Test Suites** (`tests/canary/*.spec.ts`) - Smoke tests and UI validation
-4. **CI Integration** (`.github/workflows/canary-*.yml`) - PR, post-deploy, and scheduled checks
-5. **Storage State Management** - Authenticated session snapshots for testing
+1. **Selector Contracts** (`src/canary/selectors.ts` - *to be created*) - Versioned, contract-based selectors
+2. **Resilient Resolver** (`src/canary/resolver.ts` - *to be created*) - Fallback chain for selector failures
+3. **Playwright Test Suites** (`tests/canary/*.spec.ts` - *to be created*) - Smoke tests and UI validation
+4. **CI Integration** (`.github/workflows/canary-*.yml` - *to be created*) - PR, post-deploy, and scheduled checks
+5. **Storage State Management** (`.auth/facebook.json` - *to be created*) - Authenticated session snapshots for testing
 
 ---
 
@@ -55,7 +57,7 @@ The UI Canary system provides **automated resilience testing** for Facebook UI s
 
 ## 1. Selector Contracts
 
-**File**: `src/canary/selectors.ts`
+**File**: `src/canary/selectors.ts` (*to be created - Task 7.2*)
 
 ### Purpose
 Provide **versioned, contract-based selectors** for Facebook UI elements with built-in fallback chains.
@@ -132,7 +134,7 @@ export const DEFAULT_SELECTORS: VersionedSelectors = {
 
 ## 2. Resilient Resolver
 
-**File**: `src/canary/resolver.ts`
+**File**: `src/canary/resolver.ts` (*to be created - Task 7.2*)
 
 ### Purpose
 Implement **automatic fallback** when primary selectors fail, with telemetry for tracking degradation.
@@ -189,7 +191,7 @@ The resolver emits metrics to Prometheus:
 
 ## 3. Playwright Test Suites
 
-**Files**: `tests/canary/*.spec.ts`
+**Files**: `tests/canary/*.spec.ts` (*to be created - Task 7.2*)
 
 ### Test Types
 
@@ -237,7 +239,7 @@ test.describe('Facebook UI Smoke Tests', () => {
 
 ### Job Types
 
-#### A. PR Checks (`.github/workflows/canary-pr.yml`)
+#### A. PR Checks (`.github/workflows/canary-pr.yml` - *to be created*)
 
 **Trigger**: Pull requests to `main` or `develop`
 **Runtime**: ~1 minute
@@ -301,7 +303,7 @@ jobs:
 - `github.event.pull_request.head.repo.fork == false` - No forks (secrets unavailable)
 - `vars.CANARY_ENABLED == 'true'` - Repository variable flag
 
-#### B. Post-Deploy (`.github/workflows/canary-deploy.yml`)
+#### B. Post-Deploy (`.github/workflows/canary-deploy.yml` - *to be created*)
 
 **Trigger**: After merge to `main`
 **Runtime**: ~5 minutes
@@ -332,7 +334,7 @@ jobs:
           # Commit updated baselines back to repo
 ```
 
-#### C. Scheduled (`.github/workflows/canary-scheduled.yml`)
+#### C. Scheduled (`.github/workflows/canary-scheduled.yml` - *to be created*)
 
 **Trigger**: Nightly at 2 AM UTC (cron: `0 2 * * *`)
 **Runtime**: ~10 minutes
@@ -509,9 +511,17 @@ See [how-to-update-selectors.md](./how-to-update-selectors.md) for detailed step
 
 ---
 
-**Next Steps**:
-1. Implement selector contracts in `src/canary/selectors.ts`
-2. Build resilient resolver in `src/canary/resolver.ts`
-3. Create Playwright smoke tests in `tests/canary/smoke.spec.ts`
-4. Set up CI workflows with fork/secret gating
-5. Configure Prometheus metrics and Grafana dashboards
+**Implementation Checklist (Task 7.2)**:
+- [ ] Create `src/canary/` directory
+- [ ] Implement selector contracts in `src/canary/selectors.ts`
+- [ ] Build resilient resolver in `src/canary/resolver.ts`
+- [ ] Create `tests/canary/` directory
+- [ ] Create Playwright smoke tests in `tests/canary/smoke.spec.ts`
+- [ ] Create Playwright full suite in `tests/canary/full.spec.ts`
+- [ ] Create visual regression tests in `tests/canary/visual.spec.ts`
+- [ ] Set up `.github/workflows/canary-pr.yml` with fork/secret gating
+- [ ] Set up `.github/workflows/canary-deploy.yml`
+- [ ] Set up `.github/workflows/canary-scheduled.yml`
+- [ ] Configure Prometheus metrics and Grafana dashboards
+- [ ] Create `.auth/` directory (add to `.gitignore`)
+- [ ] Document storage state refresh process
