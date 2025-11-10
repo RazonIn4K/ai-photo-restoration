@@ -1,8 +1,13 @@
 import type { Request, Response } from 'express';
 
+import { useMockDashboard } from '../../config/index.js';
 import { logger } from '../../lib/logger.js';
 import { RequestRecordModel } from '../../models/index.js';
 import { ingestPhoto } from '../../services/photo-ingestion.js';
+import {
+  getMockRequestById,
+  filterMockRequests
+} from './mock-data.js';
 import type { IngestPhotoRequest, GetRequestParams, ListRequestsQuery } from '../schemas/requests.js';
 
 /**
@@ -54,6 +59,28 @@ export async function getRequestHandler(req: Request, res: Response): Promise<vo
   try {
     const { requestId } = req.params as GetRequestParams;
 
+    // Use mock data if enabled
+    if (useMockDashboard()) {
+      logger.info({ requestId, mode: 'mock' }, 'Serving mock request data');
+      const mockRequest = await getMockRequestById(requestId);
+
+      if (!mockRequest) {
+        res.status(404).json({
+          success: false,
+          error: 'Request not found',
+          message: `No request found with ID: ${requestId}`
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        request: mockRequest
+      });
+      return;
+    }
+
+    // Production path
     const request = await RequestRecordModel.findOne({ requestId }).lean();
 
     if (!request) {
@@ -87,6 +114,33 @@ export async function listRequestsHandler(req: Request, res: Response): Promise<
   try {
     const { status, facebookGroupId, limit, offset, sortBy, sortOrder } = req.query as unknown as ListRequestsQuery;
 
+    // Use mock data if enabled
+    if (useMockDashboard()) {
+      logger.info({ mode: 'mock', filters: { status, facebookGroupId } }, 'Serving mock requests list');
+
+      const { requests, total } = await filterMockRequests({
+        status,
+        facebookGroupId,
+        limit,
+        offset,
+        sortBy,
+        sortOrder
+      });
+
+      res.json({
+        success: true,
+        data: requests,
+        pagination: {
+          total,
+          limit,
+          offset,
+          hasMore: offset + limit < total
+        }
+      });
+      return;
+    }
+
+    // Production path
     // Build query
     const query: Record<string, unknown> = {};
     if (status) query.status = status;

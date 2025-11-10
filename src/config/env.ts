@@ -92,6 +92,11 @@ const envSchema = z.object({
         .max(65535)
         .describe('METRICS_PORT must be a valid port number')
     ),
+  // Mock dashboard mode (for development only)
+  USE_MOCK_DASHBOARD: z
+    .string()
+    .default('false')
+    .transform(value => value === 'true' || value === '1'),
   // Zyte API configuration (optional, disabled if ZYTE_API_KEY not provided)
   ZYTE_API_KEY: z
     .string()
