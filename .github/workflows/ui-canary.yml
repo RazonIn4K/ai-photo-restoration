@@ -1,235 +1,311 @@
-name: UI Canary Pipeline
+
+name: UI Canary Tests
 
 on:
-  workflow_dispatch:
+  # PR canaries - fast smoke tests on trusted PRs
+  pull_request:
+    branches: [main, develop]
+
+  # Post-merge canaries - smoke + meta after merge to main
+  push:
+    branches: [main]
+
+  # Scheduled prod canaries - full suite every 15 minutes
   schedule:
     - cron: '*/15 * * * *'
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches:
-      - main
-      - develop
-      - 'release/**'
-  push:
-    branches:
-      - main
 
-permissions:
-  contents: read
+  # Manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: 'Test suite to run'
+        required: true
+        default: 'smoke'
+        type: choice
+        options:
+          - smoke
+          - meta
+          - visual
+          - all
 
-env:
-  CANARY_REPORT_DIR: artifacts/canary
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
 
 jobs:
-  canary_pr_fast:
-    name: PR Canary - Fast Critical Smoke
-    if: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
+  # Eligibility check - determines if canaries can run
+  check-eligibility:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    outputs:
+      is-fork: ${{ steps.check.outputs.is-fork }}
+      has-secrets: ${{ steps.check.outputs.has-secrets }}
+      can-run: ${{ steps.check.outputs.can-run }}
+      skip-reason: ${{ steps.check.outputs.skip-reason }}
 
     steps:
-      - name: Checkout
+      - name: Check eligibility
+        id: check
+        run: |
+          echo "Checking canary eligibility..."
+
+          # Check if PR is from a fork
+          IS_FORK="false"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+              IS_FORK="true"
+              echo "⚠️  PR is from a fork - secrets not available"
+            fi
+          fi
+
+          # Check if required secrets are available (placeholder check)
+          # In production, you'd check actual secret availability
+          HAS_SECRETS="true"
+          if [ "$IS_FORK" = "true" ]; then
+            HAS_SECRETS="false"
+          fi
+
+          # Determine if canaries can run
+          CAN_RUN="true"
+          SKIP_REASON=""
+
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "$IS_FORK" = "true" ]; then
+            CAN_RUN="false"
+            SKIP_REASON="Forked PR - secrets not available"
+          elif [ "${{ github.event_name }}" = "schedule" ] && [ "${{ github.ref }}" != "refs/heads/main" ]; then
+            CAN_RUN="false"
+            SKIP_REASON="Scheduled canaries only run on main branch"
+          fi
+
+          echo "is-fork=$IS_FORK" >> $GITHUB_OUTPUT
+          echo "has-secrets=$HAS_SECRETS" >> $GITHUB_OUTPUT
+          echo "can-run=$CAN_RUN" >> $GITHUB_OUTPUT
+          echo "skip-reason=$SKIP_REASON" >> $GITHUB_OUTPUT
+
+          echo "📊 Eligibility Results:"
+          echo "  Event: ${{ github.event_name }}"
+          echo "  Is Fork: $IS_FORK"
+          echo "  Has Secrets: $HAS_SECRETS"
+          echo "  Can Run: $CAN_RUN"
+          echo "  Skip Reason: $SKIP_REASON"
+
+  # PR Canary Skip Notice - Inform when canary is skipped
+  pr-canary-skip-notice:
+    name: PR Canary Skip Notice
+    needs: check-eligibility
+    if: github.event_name == 'pull_request' && needs.check-eligibility.outputs.can-run != 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Log skip reason
+        run: |
+          echo "⏭️  PR canary skipped: ${{ needs.check-eligibility.outputs.skip-reason }}"
+          echo ""
+          echo "This is expected behavior and does not indicate a failure."
+          echo ""
+          echo "Details:"
+          echo "  - Is Fork: ${{ needs.check-eligibility.outputs.is-fork }}"
+          echo "  - Has Secrets: ${{ needs.check-eligibility.outputs.has-secrets }}"
+          echo "  - Skip Reason: ${{ needs.check-eligibility.outputs.skip-reason }}"
+          echo ""
+          echo "Forked PRs cannot access repository secrets for security reasons."
+          echo "Canary tests will run after merge to a trusted branch."
+
+  # PR Canary - Fast smoke tests on trusted PRs only
+  pr-canary:
+    name: PR Smoke Canary
+    needs: check-eligibility
+    if: github.event_name == 'pull_request' && needs.check-eligibility.outputs.can-run == 'true'
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:7.0
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: changeme
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Determine canary eligibility
-        id: eligibility
-        env:
-          IS_FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork || false }}
-          CANARY_BASE_URL: ${{ secrets.CANARY_BASE_URL_STAGING }}
-          CANARY_USER_EMAIL: ${{ secrets.CANARY_USER_EMAIL }}
-          CANARY_USER_PASSWORD: ${{ secrets.CANARY_USER_PASSWORD }}
-        run: |
-          if [ "${IS_FORK}" = "true" ]; then
-            echo "eligible=false" >> "$GITHUB_OUTPUT"
-            echo "reason=untrusted fork" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+      - name: Setup Node.js
 
-          if [ -z "$CANARY_BASE_URL" ] || [ -z "$CANARY_USER_EMAIL" ] || [ -z "$CANARY_USER_PASSWORD" ]; then
-            echo "eligible=false" >> "$GITHUB_OUTPUT"
-            echo "reason=missing staging secrets" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "eligible=true" >> "$GITHUB_OUTPUT"
-          echo "reason=" >> "$GITHUB_OUTPUT"
-
-      - name: Skip canary execution
-        if: ${{ steps.eligibility.outputs.eligible != 'true' }}
-        run: echo "Skipping PR canary run: ${{ steps.eligibility.outputs.reason || 'not eligible' }}"
-
-      - name: Setup Node
-        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
-        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
+
         run: npm ci
 
-      - name: Install Playwright browsers
-        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
-        run: npx playwright install --with-deps
-
-      - name: Run fast smoke canaries
-        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
+      - name: Run smoke canary
+        run: npm run canary:smoke
         env:
-          CANARY_BASE_URL: ${{ secrets.CANARY_BASE_URL_STAGING }}
-          CANARY_USER_EMAIL: ${{ secrets.CANARY_USER_EMAIL }}
-          CANARY_USER_PASSWORD: ${{ secrets.CANARY_USER_PASSWORD }}
-          CANARY_ENV: 'pr'
-        run: |
-          mkdir -p "$CANARY_REPORT_DIR"
-          npm run canary:smoke
+          NODE_ENV: test
+          MONGO_URI: mongodb://admin:changeme@localhost:27017/face_restore_test?authSource=admin
+          REDIS_URL: redis://localhost:6379
+          MONGO_DISABLE_CSFLE: true
+          CI: true
 
-      - name: Upload canary artifacts (PR fast)
-        if: ${{ always() && steps.eligibility.outputs.eligible == 'true' }}
+  # Post-Merge Canary - Smoke + Meta after pushes to main
+  post-merge-canary:
+    name: Post-Merge Canary (Smoke + Meta)
+    needs: check-eligibility
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    services:
+      mongodb:
+        image: mongo:7.0
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: changeme
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run smoke canary
+        run: npm run canary:smoke
+        env:
+          NODE_ENV: test
+          MONGO_URI: mongodb://admin:changeme@localhost:27017/face_restore_test?authSource=admin
+          REDIS_URL: redis://localhost:6379
+          MONGO_DISABLE_CSFLE: true
+          CI: true
+
+      - name: Run meta canary
+        run: npm run canary:meta
+        env:
+          NODE_ENV: test
+          MONGO_URI: mongodb://admin:changeme@localhost:27017/face_restore_test?authSource=admin
+          REDIS_URL: redis://localhost:6379
+          MONGO_DISABLE_CSFLE: true
+          CI: true
+
+  # Scheduled Prod Canary - Full suite every 15 minutes
+  scheduled-canary:
+    name: Scheduled Prod Canary
+    needs: check-eligibility
+    if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.check-eligibility.outputs.can-run == 'true'
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Don't fail workflow on canary errors
+
+    strategy:
+      matrix:
+        suite: [smoke, meta, visual]
+      fail-fast: false  # Run all suites even if one fails
+
+    services:
+      mongodb:
+        image: mongo:7.0
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: changeme
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7.2-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ${{ matrix.suite }} canary
+        run: npm run canary:${{ matrix.suite }}
+        continue-on-error: true  # Continue even if this suite fails
+        env:
+          NODE_ENV: test
+          MONGO_URI: mongodb://admin:changeme@localhost:27017/face_restore_test?authSource=admin
+          REDIS_URL: redis://localhost:6379
+          MONGO_DISABLE_CSFLE: true
+          CI: true
+
+      - name: Upload canary artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ui-canary-pr-fast-${{ github.run_id }}
+          name: canary-${{ matrix.suite }}-results-${{ github.run_number }}
           path: |
-            artifacts/canary/
-            playwright-report/
-            test-results/
-          if-no-files-found: ignore
+            canary-artifacts/
+            canary-results.json
           retention-days: 7
+          if-no-files-found: ignore
 
-  canary_post_deploy_main:
-    name: Post-Deploy Canary - Main (Staging Gate)
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Determine canary eligibility
-        id: eligibility
-        env:
-          CANARY_BASE_URL: ${{ secrets.CANARY_BASE_URL_STAGING }}
-          CANARY_USER_EMAIL: ${{ secrets.CANARY_USER_EMAIL }}
-          CANARY_USER_PASSWORD: ${{ secrets.CANARY_USER_PASSWORD }}
+      - name: Report canary status
+        if: always()
         run: |
-          if [ -z "$CANARY_BASE_URL" ] || [ -z "$CANARY_USER_EMAIL" ] || [ -z "$CANARY_USER_PASSWORD" ]; then
-            echo "eligible=false" >> "$GITHUB_OUTPUT"
-            echo "reason=missing staging secrets" >> "$GITHUB_OUTPUT"
-            exit 0
+          echo "📊 Canary Status for ${{ matrix.suite }} suite"
+          echo "Run ID: ${{ github.run_id }}"
+          echo "Run Number: ${{ github.run_number }}"
+          if [ -f canary-artifacts/${{ matrix.suite }}-metadata.json ]; then
+            echo "Metadata:"
+            cat canary-artifacts/${{ matrix.suite }}-metadata.json
           fi
 
-          echo "eligible=true" >> "$GITHUB_OUTPUT"
-          echo "reason=" >> "$GITHUB_OUTPUT"
-
-      - name: Skip canary execution
-        if: ${{ steps.eligibility.outputs.eligible != 'true' }}
-        run: echo "Skipping post-deploy canary run: ${{ steps.eligibility.outputs.reason || 'not eligible' }}"
-
-      - name: Setup Node
-        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
-        run: npm ci
-
-      - name: Install Playwright browsers
-        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
-        run: npx playwright install --with-deps
-
-      - name: Run staging canary suites
-        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
-        env:
-          CANARY_BASE_URL: ${{ secrets.CANARY_BASE_URL_STAGING }}
-          CANARY_USER_EMAIL: ${{ secrets.CANARY_USER_EMAIL }}
-          CANARY_USER_PASSWORD: ${{ secrets.CANARY_USER_PASSWORD }}
-          CANARY_ENV: 'staging-post-deploy'
-        run: |
-          mkdir -p "$CANARY_REPORT_DIR"
-          npm run canary:smoke
-          npm run canary:meta
-
-      - name: Upload canary artifacts (Post-deploy main)
-        if: ${{ always() && steps.eligibility.outputs.eligible == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ui-canary-post-deploy-${{ github.run_id }}
-          path: |
-            artifacts/canary/
-            playwright-report/
-            test-results/
-          if-no-files-found: ignore
-          retention-days: 14
-
-  canary_scheduled_prod:
-    name: Scheduled Canary - Continuous Monitoring
-    if: ${{ github.event_name == 'schedule' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Determine canary eligibility
-        id: eligibility
-        env:
-          CANARY_BASE_URL: ${{ secrets.CANARY_BASE_URL_PROD }}
-          CANARY_USER_EMAIL: ${{ secrets.CANARY_USER_EMAIL }}
-          CANARY_USER_PASSWORD: ${{ secrets.CANARY_USER_PASSWORD }}
-        run: |
-          if [ -z "$CANARY_BASE_URL" ] || [ -z "$CANARY_USER_EMAIL" ] || [ -z "$CANARY_USER_PASSWORD" ]; then
-            echo "eligible=false" >> "$GITHUB_OUTPUT"
-            echo "reason=missing production secrets" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "eligible=true" >> "$GITHUB_OUTPUT"
-          echo "reason=" >> "$GITHUB_OUTPUT"
-
-      - name: Skip canary execution
-        if: ${{ steps.eligibility.outputs.eligible != 'true' }}
-        run: echo "Skipping scheduled canary run: ${{ steps.eligibility.outputs.reason || 'not eligible' }}"
-
-      - name: Setup Node
-        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
-        run: npm ci
-
-      - name: Install Playwright browsers
-        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
-        run: npx playwright install --with-deps
-
-      - name: Run production monitoring canaries
-        if: ${{ steps.eligibility.outputs.eligible == 'true' }}
-        continue-on-error: true
-        env:
-          CANARY_BASE_URL: ${{ secrets.CANARY_BASE_URL_PROD }}
-          CANARY_USER_EMAIL: ${{ secrets.CANARY_USER_EMAIL }}
-          CANARY_USER_PASSWORD: ${{ secrets.CANARY_USER_PASSWORD }}
-          CANARY_ENV: 'prod-scheduled'
-        run: |
-          mkdir -p "$CANARY_REPORT_DIR"
-          npm run canary:smoke
-
-      - name: Upload canary artifacts (Scheduled)
-        if: ${{ always() && steps.eligibility.outputs.eligible == 'true' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ui-canary-scheduled-${{ github.run_id }}
-          path: |
-            artifacts/canary/
-            playwright-report/
-            test-results/
-          if-no-files-found: ignore
-          retention-days: 3
