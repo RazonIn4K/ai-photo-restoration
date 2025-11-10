@@ -1,5 +1,6 @@
 import { Router } from 'express';
 
+import { altTextRouter } from './alt-text.js';
 import { imagesRouter } from './images.js';
 import { requestsRouter } from './requests.js';
 
@@ -11,6 +12,7 @@ export const routes = Router();
 // Mount sub-routers
 routes.use('/requests', requestsRouter);
 routes.use('/images', imagesRouter);
+routes.use('/alt-text', altTextRouter);
 
 // API info endpoint
 routes.get('/', (req, res) => {
@@ -20,6 +22,7 @@ routes.get('/', (req, res) => {
     endpoints: {
       health: '/health',
       requests: '/api/requests',
+      altText: '/api/alt-text',
       metrics: '/api/metrics'
     }
   });
